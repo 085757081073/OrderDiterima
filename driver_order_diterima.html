@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Detail Order</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    #map {
+      height: 50%;
+      width: 100%;
+    }
+    .info {
+      background: #f5f5f5;
+      padding: 15px;
+      color: #333;
+    }
+    .info h2 {
+      margin-top: 0;
+      font-size: 20px;
+      color: #007bff;
+    }
+    .info p {
+      font-size: 16px;
+      margin: 6px 0;
+    }
+    .info .highlight {
+      font-size: 18px;
+      font-weight: bold;
+      color: #222;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="info" id="orderInfo">
+    <h2>📦 Detail Order</h2>
+    <p><strong>Nama:</strong> <span id="nama"></span></p>
+    <p><strong>Alamat Jemput:</strong> <span id="alamatA"></span></p>
+    <p><strong>Tujuan:</strong> <span id="alamatB"></span></p>
+    <p class="highlight">Jarak: <span id="jarak"></span></p>
+    <p class="highlight">Harga: <span id="harga"></span></p>
+  </div>
+
+  <!-- Google Maps -->
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const nama = params.get("nama") || "-";
+    const alamatA = params.get("alamat_a") || "-";
+    const alamatB = params.get("alamat_b") || "-";
+    const jarak = params.get("jarak") || "-";
+    const harga = params.get("harga") || "-";
+    const from_lat = parseFloat(params.get("from_lat"));
+    const from_lng = parseFloat(params.get("from_lng"));
+    const to_lat = parseFloat(params.get("to_lat"));
+    const to_lng = parseFloat(params.get("to_lng"));
+    const apiKey = params.get("apiKey");
+
+    document.getElementById("nama").textContent = nama;
+    document.getElementById("alamatA").textContent = alamatA;
+    document.getElementById("alamatB").textContent = alamatB;
+    document.getElementById("jarak").textContent = jarak;
+    document.getElementById("harga").textContent = harga;
+
+    function initMap() {
+      const origin = { lat: from_lat, lng: from_lng };
+      const destination = { lat: to_lat, lng: to_lng };
+
+      const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 14,
+        center: origin
+      });
+
+      const directionsService = new google.maps.DirectionsService();
+      const directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map
+      });
+
+      directionsService.route({
+        origin,
+        destination,
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (response, status) => {
+        if (status === "OK") {
+          directionsRenderer.setDirections(response);
+        } else {
+          alert("Gagal menampilkan rute: " + status);
+        }
+      });
+    }
+
+    if (apiKey && from_lat && to_lat) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+      script.defer = true;
+      script.async = true;
+      document.head.appendChild(script);
+    } else {
+      alert("Parameter tidak lengkap!");
+    }
+  </script>
+</body>
+</html>
