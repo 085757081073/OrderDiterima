@@ -17,13 +17,15 @@
       height: 100%;
     }
     #map {
-      flex: 1; /* Map akan mengisi ruang sisa vertikal */
+      height: 60%; /* atur peta agar pasti tampil */
     }
     #info {
       background-color: #f0f0f0;
       padding: 15px;
       text-align: left;
       font-size: 16px;
+      flex: 1;
+      overflow-y: auto;
     }
     .label {
       font-weight: bold;
@@ -60,6 +62,13 @@
     document.getElementById("jarak").textContent = params.get("jarak") || "-";
     document.getElementById("harga").textContent = params.get("harga") || "-";
 
+    // Inject Google Maps API dengan callback
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
     function initMap() {
       const directionsService = new google.maps.DirectionsService();
       const directionsRenderer = new google.maps.DirectionsRenderer();
@@ -70,26 +79,18 @@
       });
       directionsRenderer.setMap(map);
 
-      const request = {
+      directionsService.route({
         origin: { lat: fromLat, lng: fromLng },
         destination: { lat: toLat, lng: toLng },
         travelMode: 'DRIVING'
-      };
-
-      directionsService.route(request, (result, status) => {
+      }, (result, status) => {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
         } else {
-          alert('Gagal memuat arah: ' + status);
+          alert('Gagal memuat peta: ' + status);
         }
       });
     }
-  </script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=" id="maps-api" async defer></script>
-  <script>
-    // Tambahkan apiKey ke script maps
-    const key = encodeURIComponent(apiKey);
-    document.getElementById("maps-api").src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
   </script>
 </body>
 </html>
