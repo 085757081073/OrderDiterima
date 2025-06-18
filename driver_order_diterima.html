@@ -1,130 +1,110 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Order Diterima</title>
+  <meta charset="UTF-8">
+  <title>Detail Order</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      height: 100vh;
+      height: 100%;
       font-family: sans-serif;
-      background-color: #ffffff;
+      background-color: #f9f9f9;
       display: flex;
       flex-direction: column;
     }
+
     #map {
-      height: 50%;
       width: 100%;
+      height: 50vh; /* Setengah layar */
+      background-color: #ddd;
     }
+
     #info {
-      flex: 1;
-      padding: 15px;
+      flex-grow: 1;
       overflow-y: auto;
+      padding: 15px;
     }
+
     .label {
       font-weight: bold;
-      color: #333;
+      display: block;
+      margin-top: 8px;
     }
+
     .value {
       margin-bottom: 10px;
-      display: block;
     }
-    .button {
-      margin-top: 10px;
-      padding: 10px;
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 5px;
-      width: 100%;
-      font-size: 16px;
+      border-radius: 6px;
       cursor: pointer;
     }
-    .button:active {
-      opacity: 0.8;
+
+    button:hover {
+      background-color: #0056b3;
     }
-    #loading {
-      color: #888;
-      font-size: 14px;
-      margin-bottom: 10px;
+
+    .note {
+      font-size: 12px;
+      color: #555;
+      margin-top: 10px;
+      background: #fff8c6;
+      padding: 8px;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
+
+  <div id="map">Memuat peta...</div>
+
   <div id="info">
-    <div id="loading">Sedang mengambil data order. Jangan batalkan orderan jika informasi belum tampil. Cek koneksi internet Anda.</div>
-    <div><span class="label">🧍 Nama:</span> <span id="name" class="value"></span></div>
+    <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div>
     <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div>
     <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
-    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;"></span></div>
-    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;"></span></div>
+    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="color: #007bff; font-size: 18px;"></span></div>
+    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="color: #28a745; font-size: 18px;"></span></div>
 
-    <button class="button" onclick="navigateTo('a')">Navigasi ke Penjemputan</button>
-    <button class="button" onclick="navigateTo('b')">Navigasi ke Tujuan</button>
-    <button class="button" onclick="sendWebString('chat')">💬 Chat Penumpang</button>
-    <button class="button" onclick="sendWebString('tiba')">📍 Saya Sudah Tiba</button>
+    <button onclick="navigasi('pickup')">🧭 Navigasi ke Titik Jemput</button>
+    <button onclick="navigasi('tujuan')">🧭 Navigasi ke Tujuan</button>
+    <button onclick="chat()">💬 Chat Penumpang</button>
+    <button onclick="tiba()">📍 Saya Sudah Tiba</button>
+
+    <div class="note">Jika informasi kosong, pastikan semua parameter terkirim dengan benar di URL.</div>
   </div>
 
   <script>
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(window.location.search);
     const fromLat = parseFloat(params.get("from_lat"));
     const fromLng = parseFloat(params.get("from_lng"));
     const toLat = parseFloat(params.get("to_lat"));
     const toLng = parseFloat(params.get("to_lng"));
-    const name = params.get("name");
-    const alamat_a = params.get("alamat_a");
-    const alamat_b = params.get("alamat_b");
-    const jarak = params.get("jarak");
-    const harga = params.get("harga");
-    const vehicle = params.get("vehicle") || "motor";
     const apiKey = params.get("apiKey");
 
-    document.getElementById("name").textContent = name || "-";
-    document.getElementById("alamat_a").textContent = alamat_a || "-";
-    document.getElementById("alamat_b").textContent = alamat_b || "-";
-    document.getElementById("jarak").textContent = jarak || "-";
-    document.getElementById("harga").textContent = harga || "-";
-
-    function navigateTo(target) {
-      const lat = target === "a" ? fromLat : toLat;
-      const lng = target === "a" ? fromLng : toLng;
-      sendWebString("navigate:" + lat + "," + lng);
-    }
-
-    function sendWebString(value) {
-      if (window.AppInventor) {
-        window.AppInventor.setWebViewString(value);
-      } else {
-        alert("WebViewString: " + value);
-      }
-    }
+    document.getElementById("name").textContent = params.get("name") || "-";
+    document.getElementById("alamat_a").textContent = params.get("alamat_a") || "-";
+    document.getElementById("alamat_b").textContent = params.get("alamat_b") || "-";
+    document.getElementById("jarak").textContent = params.get("jarak") || "-";
+    document.getElementById("harga").textContent = params.get("harga") || "-";
 
     function initMap() {
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: fromLat, lng: fromLng },
+        zoom: 14
+      });
+
       const directionsService = new google.maps.DirectionsService();
       const directionsRenderer = new google.maps.DirectionsRenderer();
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 14,
-        center: { lat: fromLat, lng: fromLng }
-      });
       directionsRenderer.setMap(map);
-
-      const iconURL = {
-        motor: "https://cdn-icons-png.flaticon.com/128/296/296216.png",
-        mobil: "https://cdn-icons-png.flaticon.com/128/743/743988.png",
-        bentor: "https://cdn-icons-png.flaticon.com/128/1532/1532844.png"
-      }[vehicle] || "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
-
-      new google.maps.Marker({
-        position: { lat: fromLat, lng: fromLng },
-        map,
-        icon: {
-          url: iconURL,
-          scaledSize: new google.maps.Size(40, 40)
-        },
-        title: "Lokasi Penjemputan"
-      });
 
       const request = {
         origin: { lat: fromLat, lng: fromLng },
@@ -139,14 +119,34 @@
           alert('Gagal memuat arah: ' + status);
         }
       });
+    }
 
-      document.getElementById("loading").style.display = "none";
+    function navigasi(tipe) {
+      const url = tipe === "pickup"
+        ? `https://www.google.com/maps/dir/?api=1&destination=${fromLat},${fromLng}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${toLat},${toLng}`;
+      window.location.href = url;
+    }
+
+    function chat() {
+      const phone = params.get("phone") || "";
+      if (phone) {
+        window.location.href = `https://wa.me/${phone.replace(/^0/, '62')}`;
+      } else {
+        alert("Nomor penumpang tidak tersedia.");
+      }
+    }
+
+    function tiba() {
+      const url = `webstring://driver_tiba`;
+      window.location.href = url;
     }
   </script>
-  <script async defer id="maps-api" src=""></script>
+  <script async defer id="mapScript"></script>
   <script>
-    const src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap`;
-    document.getElementById("maps-api").src = src;
+    // Tambahkan key ke pemanggilan API Google Maps
+    const apiScript = document.getElementById("mapScript");
+    apiScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
   </script>
 </body>
 </html>
