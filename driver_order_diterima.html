@@ -7,7 +7,6 @@
     html, body {
       height: 100%;
       margin: 0;
-      padding: 0;
       font-family: sans-serif;
       background-color: #ffffff;
     }
@@ -17,15 +16,12 @@
       height: 100%;
     }
     #map {
-      height: 60%; /* atur peta agar pasti tampil */
+      flex: 1;
     }
     #info {
-      background-color: #f0f0f0;
       padding: 15px;
-      text-align: left;
+      background-color: #f0f0f0;
       font-size: 16px;
-      flex: 1;
-      overflow-y: auto;
     }
     .label {
       font-weight: bold;
@@ -33,6 +29,21 @@
     }
     .value {
       margin-bottom: 10px;
+    }
+    #buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    button {
+      flex: 1;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -45,6 +56,10 @@
       <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
       <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;"></span></div>
       <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;"></span></div>
+      <div id="buttons">
+        <button onclick="navigasiKe('A')">Navigasi ke Alamat A</button>
+        <button onclick="navigasiKe('B')">Navigasi ke Alamat B</button>
+      </div>
     </div>
   </div>
 
@@ -62,13 +77,6 @@
     document.getElementById("jarak").textContent = params.get("jarak") || "-";
     document.getElementById("harga").textContent = params.get("harga") || "-";
 
-    // Inject Google Maps API dengan callback
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-
     function initMap() {
       const directionsService = new google.maps.DirectionsService();
       const directionsRenderer = new google.maps.DirectionsRenderer();
@@ -79,18 +87,41 @@
       });
       directionsRenderer.setMap(map);
 
-      directionsService.route({
+      const request = {
         origin: { lat: fromLat, lng: fromLng },
         destination: { lat: toLat, lng: toLng },
         travelMode: 'DRIVING'
-      }, (result, status) => {
+      };
+
+      directionsService.route(request, (result, status) => {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
         } else {
-          alert('Gagal memuat peta: ' + status);
+          alert('Gagal memuat arah: ' + status);
         }
       });
     }
+
+    function navigasiKe(tujuan) {
+      let lat, lng;
+      if (tujuan === 'A') {
+        lat = fromLat;
+        lng = fromLng;
+        if (window.AppInventor) AppInventor.setWebViewString("navigate_to=A");
+      } else {
+        lat = toLat;
+        lng = toLng;
+        if (window.AppInventor) AppInventor.setWebViewString("navigate_to=B");
+      }
+      const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+      window.location.href = gmaps;
+    }
+  </script>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=" id="maps-api" async defer></script>
+  <script>
+    const key = encodeURIComponent(apiKey);
+    document.getElementById("maps-api").src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
   </script>
 </body>
 </html>
