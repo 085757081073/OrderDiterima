@@ -5,8 +5,9 @@
   <title>Detail Order</title>
   <style>
     html, body {
-      height: 100%;
       margin: 0;
+      padding: 0;
+      height: 100%;
       font-family: sans-serif;
       background-color: #ffffff;
     }
@@ -16,34 +17,37 @@
       height: 100%;
     }
     #map {
-      flex: 1;
+      height: 60vh;
+      width: 100%;
     }
     #info {
       padding: 15px;
-      background-color: #f0f0f0;
-      font-size: 16px;
+      background-color: #f8f8f8;
+      flex: 1;
+      box-sizing: border-box;
     }
     .label {
       font-weight: bold;
-      color: #333;
+      color: #444;
     }
     .value {
       margin-bottom: 10px;
+      display: inline-block;
     }
-    #buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-    }
-    button {
-      flex: 1;
+    .button {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
       padding: 12px;
+      font-size: 16px;
       background-color: #007bff;
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
       cursor: pointer;
+    }
+    .button:active {
+      background-color: #0056b3;
     }
   </style>
 </head>
@@ -51,17 +55,19 @@
   <div id="container">
     <div id="map"></div>
     <div id="info">
-      <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div>
-      <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div>
-      <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
-      <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;"></span></div>
-      <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;"></span></div>
-      <div id="buttons">
-        <button onclick="navigasiKe('A')">Navigasi ke Alamat A</button>
-        <button onclick="navigasiKe('B')">Navigasi ke Alamat B</button>
-      </div>
+      <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div><br>
+      <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div><br>
+      <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div><br>
+      <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;"></span></div><br>
+      <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;"></span></div><br>
+
+      <button class="button" onclick="chatPenumpang()">💬 Chat Penumpang</button>
+      <button class="button" onclick="sudahTiba()">📍 Saya Sudah Tiba</button>
     </div>
   </div>
+
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=" id="maps-api" async defer></script>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -71,12 +77,14 @@
     const toLng = parseFloat(params.get("to_lng"));
     const apiKey = params.get("apiKey");
 
+    // Tampilkan info
     document.getElementById("name").textContent = params.get("name") || "-";
     document.getElementById("alamat_a").textContent = params.get("alamat_a") || "-";
     document.getElementById("alamat_b").textContent = params.get("alamat_b") || "-";
     document.getElementById("jarak").textContent = params.get("jarak") || "-";
     document.getElementById("harga").textContent = params.get("harga") || "-";
 
+    // Map logic
     function initMap() {
       const directionsService = new google.maps.DirectionsService();
       const directionsRenderer = new google.maps.DirectionsRenderer();
@@ -85,6 +93,7 @@
         zoom: 14,
         center: { lat: fromLat, lng: fromLng }
       });
+
       directionsRenderer.setMap(map);
 
       const request = {
@@ -97,31 +106,31 @@
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
         } else {
-          alert('Gagal memuat arah: ' + status);
+          alert('Gagal menampilkan rute: ' + status);
         }
       });
     }
 
-    function navigasiKe(tujuan) {
-      let lat, lng;
-      if (tujuan === 'A') {
-        lat = fromLat;
-        lng = fromLng;
-        if (window.AppInventor) AppInventor.setWebViewString("navigate_to=A");
-      } else {
-        lat = toLat;
-        lng = toLng;
-        if (window.AppInventor) AppInventor.setWebViewString("navigate_to=B");
-      }
-      const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-      window.location.href = gmaps;
-    }
-  </script>
+    // Pasang callback
+    document.getElementById("maps-api").src =
+      `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap`;
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=" id="maps-api" async defer></script>
-  <script>
-    const key = encodeURIComponent(apiKey);
-    document.getElementById("maps-api").src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
+    // Fungsi tombol
+    function chatPenumpang() {
+      if (window.AppInventor) {
+        window.AppInventor.setWebViewString("chat_penumpang");
+      } else {
+        alert("🔗 WebViewString: chat_penumpang");
+      }
+    }
+
+    function sudahTiba() {
+      if (window.AppInventor) {
+        window.AppInventor.setWebViewString("sudah_tiba");
+      } else {
+        alert("📍 WebViewString: sudah_tiba");
+      }
+    }
   </script>
 </body>
 </html>
