@@ -166,12 +166,12 @@
       const orderRef = db.ref("GoMotorcycle/" + orderId);
 
       orderRef.on("value", snapshot => {
-        const data = snapshot.val();
-        if (data === null) {
-          alert("❌ Order dibatalkan oleh penumpang.");
-          window.location.href = "webstring://order_dibatalkan";
-        }
-      });
+  const data = snapshot.val();
+  if (data === null || data.status === "orderan dibatalkan") {
+    alert("❌ Order dibatalkan oleh penumpang.");
+    window.location.href = "webstring://order_dibatalkan";
+  }
+});
     }
   </script>
 </body>
