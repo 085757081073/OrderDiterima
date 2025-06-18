@@ -3,60 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <title>Order Diterima</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
-      height: 100%;
       margin: 0;
+      height: 100vh;
       font-family: sans-serif;
-      background-color: #ffffff;
-    }
-    #container {
+      background: #fff;
       display: flex;
       flex-direction: column;
-      height: 100%;
     }
     #map {
       flex: 1;
+      width: 100%;
     }
     #info {
-      background-color: #f0f0f0;
-      padding: 15px;
-      text-align: left;
-      font-size: 16px;
+      background: #f8f9fa;
+      padding: 12px;
     }
     .label {
       font-weight: bold;
-      color: #333;
     }
     .value {
-      margin-bottom: 10px;
+      display: inline-block;
+      margin-bottom: 8px;
     }
     button {
-      margin-top: 10px;
+      margin-top: 8px;
       padding: 10px;
       width: 100%;
-      background-color: #007bff;
+      font-size: 16px;
+      background: #007bff;
       color: white;
       border: none;
-      border-radius: 8px;
-      font-size: 16px;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="map"></div>
-    <div id="info">
-      <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div>
-      <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div>
-      <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
-      <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;"></span></div>
-      <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;"></span></div>
-      <button onclick="navigasi('a')">Navigasi ke Penjemputan</button>
-      <button onclick="navigasi('b')">Navigasi ke Tujuan</button>
-      <button onclick="chat()">💬 Chat Penumpang</button>
-      <button onclick="tiba()">✅ Saya Sudah Tiba</button>
-    </div>
+  <div id="map"></div>
+  <div id="info">
+    <div><span class="label">🧍 Nama:</span> <span id="name" class="value"></span></div><br>
+    <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div><br>
+    <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div><br>
+    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="color:#007bff;"></span></div><br>
+    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="color:#28a745;"></span></div><br>
+    <button onclick="navigasi('a')">Navigasi ke Penjemputan</button>
+    <button onclick="navigasi('b')">Navigasi ke Tujuan</button>
+    <button onclick="chat()">💬 Chat Penumpang</button>
+    <button onclick="tiba()">✅ Saya Sudah Tiba</button>
   </div>
 
   <script>
@@ -98,7 +93,6 @@
       const directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
       directionsRenderer.setMap(map);
 
-      // Marker penjemputan
       new google.maps.Marker({
         position: { lat: fromLat, lng: fromLng },
         map,
@@ -109,7 +103,6 @@
         }
       });
 
-      // Marker tujuan (bisa pakai default)
       new google.maps.Marker({
         position: { lat: toLat, lng: toLng },
         map,
@@ -122,11 +115,11 @@
         travelMode: 'DRIVING'
       };
 
-      directionsService.route(request, (result, status) => {
+      directionsService.route(request, function(result, status) {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
         } else {
-          alert("Sedang mengambil data order. Jangan batalkan orderan jika informasi belum tampil. Cek koneksi internet Anda.");
+          alert('Gagal memuat peta. Periksa koneksi internet Anda.');
         }
       });
     }
