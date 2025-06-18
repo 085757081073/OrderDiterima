@@ -17,7 +17,7 @@
 
     #map {
       width: 100%;
-      height: 75vh; /* Setengah layar */
+      height: 75vh;
       background-color: #ddd;
     }
 
@@ -79,9 +79,10 @@
     <button onclick="chat()">💬 Chat Penumpang</button>
     <button onclick="tiba()">📍 Saya Sudah Tiba</button>
 
-    <div class="note">Jika informasi kosong, pastikan semua parameter terkirim dengan benar di URL.</div>
+    <div class="note">Sedang mengambil data order. Jangan batalkan orderan jika informasi belum tampil. Cek koneksi internet Anda.</div>
   </div>
 
+  <!-- Google Maps API Key Inject -->
   <script>
     const params = new URLSearchParams(window.location.search);
     const fromLat = parseFloat(params.get("from_lat"));
@@ -138,15 +139,40 @@
     }
 
     function tiba() {
-      const url = `webstring://driver_tiba`;
-      window.location.href = url;
+      window.location.href = "webstring://driver_tiba";
     }
   </script>
+
+  <!-- Inject Google Maps -->
   <script async defer id="mapScript"></script>
   <script>
-    // Tambahkan key ke pemanggilan API Google Maps
     const apiScript = document.getElementById("mapScript");
     apiScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+  </script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    const databaseURL = params.get("databaseURL");
+    const orderId = params.get("order_id");
+
+    if (databaseURL && orderId) {
+      const config = {
+        databaseURL: databaseURL
+      };
+      const app = firebase.initializeApp(config, "DriverApp");
+      const db = firebase.database(app);
+      const orderRef = db.ref("GoMotorcycle/" + orderId);
+
+      orderRef.on("value", snapshot => {
+        const data = snapshot.val();
+        if (data === null) {
+          alert("❌ Order dibatalkan oleh penumpang.");
+          window.location.href = "webstring://order_dibatalkan";
+        }
+      });
+    }
   </script>
 </body>
 </html>
