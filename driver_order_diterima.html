@@ -1,53 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Detail Order</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
       font-family: sans-serif;
-      background: #f9f9f9;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
     }
+
     #map {
       width: 100%;
-      height: 300px;
-      background: #ccc;
+      height: 50vh; /* Setengah layar */
+      background-color: #ddd;
     }
+
     #info {
-      padding: 16px;
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 15px;
     }
+
     .label {
       font-weight: bold;
-      color: #333;
-    }
-    .value {
       display: block;
+      margin-top: 8px;
+    }
+
+    .value {
       margin-bottom: 10px;
     }
+
     button {
-      display: block;
       width: 100%;
       padding: 12px;
-      margin-top: 10px;
+      margin: 8px 0;
       font-size: 16px;
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #0056b3;
     }
+
     .note {
-      background: #fff3cd;
-      color: #856404;
-      padding: 10px;
-      margin-top: 15px;
-      border-radius: 5px;
-      border: 1px solid #ffeeba;
+      font-size: 12px;
+      color: #555;
+      margin-top: 10px;
+      background: #fff8c6;
+      padding: 8px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -56,18 +68,18 @@
   <div id="map">Memuat peta...</div>
 
   <div id="info">
-    <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value">-</span></div>
-    <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value">-</span></div>
-    <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value">-</span></div>
-    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="font-size: 18px; color: #007bff;">-</span></div>
-    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="font-size: 18px; color: #28a745;">-</span></div>
+    <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div>
+    <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div>
+    <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
+    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="color: #007bff; font-size: 18px;"></span></div>
+    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="color: #28a745; font-size: 18px;"></span></div>
 
-    <button onclick="navigasi('a')">🧭 Navigasi ke Titik Jemput</button>
-    <button onclick="navigasi('b')">🧭 Navigasi ke Tujuan</button>
-    <button onclick="kirimWebString('chat')">💬 Chat Penumpang</button>
-    <button onclick="kirimWebString('tiba')">📍 Saya Sudah Tiba</button>
+    <button onclick="navigasi('pickup')">🧭 Navigasi ke Titik Jemput</button>
+    <button onclick="navigasi('tujuan')">🧭 Navigasi ke Tujuan</button>
+    <button onclick="chat()">💬 Chat Penumpang</button>
+    <button onclick="tiba()">📍 Saya Sudah Tiba</button>
 
-    <div class="note">Jika informasi kosong atau peta tidak tampil, pastikan semua parameter URL dikirim dan API key valid.</div>
+    <div class="note">Jika informasi kosong, pastikan semua parameter terkirim dengan benar di URL.</div>
   </div>
 
   <script>
@@ -85,52 +97,56 @@
     document.getElementById("harga").textContent = params.get("harga") || "-";
 
     function initMap() {
-      if (!fromLat || !fromLng || !toLat || !toLng) {
-        alert("📌 Koordinat belum lengkap.");
-        return;
-      }
-
       const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 14,
-        center: { lat: fromLat, lng: fromLng }
+        center: { lat: fromLat, lng: fromLng },
+        zoom: 14
       });
 
       const directionsService = new google.maps.DirectionsService();
-      const directionsRenderer = new google.maps.DirectionsRenderer({ map });
+      const directionsRenderer = new google.maps.DirectionsRenderer();
+      directionsRenderer.setMap(map);
 
-      directionsService.route({
+      const request = {
         origin: { lat: fromLat, lng: fromLng },
         destination: { lat: toLat, lng: toLng },
         travelMode: 'DRIVING'
-      }, (result, status) => {
+      };
+
+      directionsService.route(request, (result, status) => {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
         } else {
-          alert('Gagal menampilkan arah: ' + status);
+          alert('Gagal memuat arah: ' + status);
         }
       });
     }
 
     function navigasi(tipe) {
-      const tag = tipe === "a" ? "navigasi_a" : "navigasi_b";
-      kirimWebString(tag);
+      const url = tipe === "pickup"
+        ? `https://www.google.com/maps/dir/?api=1&destination=${fromLat},${fromLng}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${toLat},${toLng}`;
+      window.location.href = url;
     }
 
-    function kirimWebString(pesan) {
-      if (window.AppInventor) {
-        window.AppInventor.setWebViewString(pesan);
+    function chat() {
+      const phone = params.get("phone") || "";
+      if (phone) {
+        window.location.href = `https://wa.me/${phone.replace(/^0/, '62')}`;
       } else {
-        console.log("Kirim ke Kodular:", pesan);
+        alert("Nomor penumpang tidak tersedia.");
       }
     }
 
-    // Inject Google Maps JS API setelah window siap
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
+    function tiba() {
+      const url = `webstring://driver_tiba`;
+      window.location.href = url;
+    }
   </script>
-
+  <script async defer id="mapScript"></script>
+  <script>
+    // Tambahkan key ke pemanggilan API Google Maps
+    const apiScript = document.getElementById("mapScript");
+    apiScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+  </script>
 </body>
 </html>
