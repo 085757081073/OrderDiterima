@@ -14,29 +14,24 @@
       display: flex;
       flex-direction: column;
     }
-
     #map {
       width: 100%;
       height: 75vh;
       background-color: #ddd;
     }
-
     #info {
       flex-grow: 1;
       overflow-y: auto;
       padding: 15px;
     }
-
     .label {
       font-weight: bold;
       display: block;
       margin-top: 8px;
     }
-
     .value {
       margin-bottom: 10px;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -48,11 +43,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #0056b3;
     }
-
     .note {
       font-size: 12px;
       color: #555;
@@ -82,7 +75,7 @@
     <div class="note">Sedang mengambil data order. Jangan batalkan orderan jika informasi belum tampil. Cek koneksi internet Anda.</div>
   </div>
 
-  <!-- Google Maps API Key Inject -->
+  <!-- Parameter & Google Maps -->
   <script>
     const params = new URLSearchParams(window.location.search);
     const fromLat = parseFloat(params.get("from_lat"));
@@ -102,17 +95,14 @@
         center: { lat: fromLat, lng: fromLng },
         zoom: 14
       });
-
       const directionsService = new google.maps.DirectionsService();
       const directionsRenderer = new google.maps.DirectionsRenderer();
       directionsRenderer.setMap(map);
-
       const request = {
         origin: { lat: fromLat, lng: fromLng },
         destination: { lat: toLat, lng: toLng },
         travelMode: 'DRIVING'
       };
-
       directionsService.route(request, (result, status) => {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
@@ -139,7 +129,11 @@
     }
 
     function tiba() {
-      window.location.href = "webstring://driver_tiba";
+      if (window.AppInventor) {
+        window.AppInventor.setWebViewString("driver_tiba");
+      } else {
+        window.location.href = "webstring://driver_tiba";
+      }
     }
   </script>
 
@@ -158,20 +152,22 @@
     const orderId = params.get("order_id");
 
     if (databaseURL && orderId) {
-      const config = {
-        databaseURL: databaseURL
-      };
+      const config = { databaseURL };
       const app = firebase.initializeApp(config, "DriverApp");
       const db = firebase.database(app);
       const orderRef = db.ref("GoMotorcycle/" + orderId);
 
       orderRef.on("value", snapshot => {
-  const data = snapshot.val();
-  if (data === null || data.status === "orderan dibatalkan") {
-    alert("❌ Order dibatalkan oleh penumpang.");
-    window.location.href = "webstring://order_dibatalkan";
-  }
-});
+        const data = snapshot.val();
+        if (data === null || data.status === "orderan dibatalkan") {
+          alert("❌ Order dibatalkan oleh penumpang.");
+          if (window.AppInventor) {
+            window.AppInventor.setWebViewString("order_dibatalkan");
+          } else {
+            window.location.href = "webstring://order_dibatalkan";
+          }
+        }
+      });
     }
   </script>
 </body>
