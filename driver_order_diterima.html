@@ -1,3 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Detail Order Diambil</title>
+  <style>
+    body {
+      background-color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 20px;
+      color: #333;
+    }
+    h2 {
+      text-align: center;
+      color: #28a745;
+    }
+    .order {
+      border: 2px solid #28a745;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #f0fff4;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      margin-top: 20px;
+    }
+    .order span {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .label {
+      font-weight: bold;
+      color: #28a745;
+    }
+    .buttons {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .buttons button {
+      padding: 10px 15px;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+    }
+    .call-btn { background-color: #007bff; }
+    .wa-btn { background-color: #25d366; }
+    .done-btn { background-color: #6f42c1; }
+  </style>
+</head>
+<body>
+
+<h2>✅ Order Telah Diambil</h2>
+<div id="orderDetail">Memuat data...</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
   const params = new URLSearchParams(window.location.search);
   const apiKey = params.get("apiKey");
@@ -10,7 +71,7 @@
   } else {
     const firebaseConfig = { apiKey, databaseURL, projectId };
 
-    // ✅ Cegah error saat initializeApp dipanggil ulang
+    // ✅ Cegah duplikat inisialisasi Firebase
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -18,13 +79,21 @@
     const ref = firebase.database().ref("GoMotorcycle/" + uid);
     ref.on("value", snapshot => {
       let order = snapshot.val();
+
       if (!order) {
         document.getElementById("orderDetail").innerHTML = "<p>⚠️ Data order tidak ditemukan.</p>";
         return;
       }
 
-      if (typeof order === "string") {
-        try { order = JSON.parse(order); } catch {}
+      // ✅ Parse jika data berbentuk string JSON
+      try {
+        if (typeof order === "string") {
+          order = JSON.parse(order.replace(/\\"/g, '"'));
+        }
+      } catch (e) {
+        console.error("Gagal parse JSON:", e);
+        document.getElementById("orderDetail").innerHTML = "<p>❌ Gagal membaca data order.</p>";
+        return;
       }
 
       const div = document.createElement("div");
@@ -51,7 +120,7 @@
       document.getElementById("orderDetail").appendChild(div);
     });
 
-    // ✅ Fungsi selesai
+    // ✅ Fungsi selesai order
     window.selesaikanOrder = function () {
       const waktu_selesai = new Date().toLocaleString();
       ref.update({
@@ -73,3 +142,6 @@
     };
   }
 </script>
+
+</body>
+</html>
