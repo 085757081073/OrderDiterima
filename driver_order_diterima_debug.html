@@ -2,47 +2,227 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Driver Order Diterima</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar Order GoMotorcycle</title>
+  <style>
+    body {
+      background-color: #ffffff;
+      color: #333;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #007BFF;
+      text-align: center;
+    }
+
+    #orderList {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .order {
+      background-color: #f9f9f9;
+      border: 2px solid #007BFF;
+      border-radius: 10px;
+      padding: 15px 20px;
+      width: 100%;
+      box-sizing: border-box;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    .order.cancelled {
+      border-color: #dc3545;
+      background-color: #fff0f0;
+    }
+
+    .order-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .order span {
+      flex: 1 1 48%;
+      min-width: 120px;
+    }
+
+    .order strong {
+      color: #007BFF;
+      display: block;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
+    .order.cancelled strong {
+      color: #dc3545;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .cancelled-btn {
+      background-color: #dc3545;
+    }
+
+    @media (max-width: 500px) {
+      .order span {
+        flex: 1 1 100%;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div id="info">Memuat data order...</div>
+  <h2>📋 Daftar Order GoMotorcycle</h2>
+  <div id="orderList">Memuat data...</div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
     const params = new URLSearchParams(window.location.search);
+    const apiKey = params.get("apiKey");
     const databaseURL = params.get("databaseURL");
-    const orderId = params.get("order_id");
+    const projectId = params.get("projectId");
+    const driverUID = params.get("driver") || "driver123";
 
-    if (databaseURL && orderId) {
-      const config = { databaseURL: databaseURL };
-      const app = firebase.initializeApp(config, "DriverApp");
-      const db = firebase.database(app);
-      const orderRef = db.ref("GoMotorcycle/" + orderId);
+    const firebaseConfig = {
+      apiKey,
+      databaseURL,
+      projectId
+    };
 
-      orderRef.on("value", snapshot => {
-        const data = snapshot.val();
-        if (!data) {
-          document.getElementById("info").innerText = "Data order tidak ditemukan.";
-          return;
+    firebase.initializeApp(firebaseConfig);
+
+    const db = firebase.database().ref("GoMotorcycle");
+    const orderList = document.getElementById("orderList");
+
+    // Fungsi untuk mengirim data ke App Inventor
+    function sendToAppInventor(data) {
+      if (window.AppInventor) {
+        window.AppInventor.setWebViewString(JSON.stringify(data));
+      }
+    }
+
+    db.on("value", snapshot => {
+      orderList.innerHTML = "";
+      const data = snapshot.val();
+      if (!data) {
+        orderList.innerHTML = "<p>Belum ada order.</p>";
+        return;
+      }
+
+      Object.keys(data).forEach(uid => {
+        let order = data[uid];
+        if (typeof order === "string") {
+          try { order = JSON.parse(order); } catch {}
         }
 
-        // Cek jika status menjadi 'orderan dibatalkan'
-        if (data.status === "orderan dibatalkan") {
-          document.getElementById("info").innerText = "❌ Order dibatalkan.";
-          if (window.AppInventor) {
-            window.AppInventor.setWebViewString("order_dibatalkan");
-          } else {
-            console.log("WebViewString fallback: order_dibatalkan");
-          }
+        // Cek jika order dibatalkan
+        const isCancelled = order.status === "order dibatalkan";
+        
+        const div = document.createElement("div");
+        div.className = `order ${isCancelled ? 'cancelled' : ''}`;
+        div.innerHTML = `
+          <strong>🧍‍♂️ ${order.name || '-'}</strong>
+          <div class="order-content">
+            <span>📞 ${order.PhoneNumber || '-'}</span>
+            <span>🗺️ Dari: ${order.alamat_a || '-'}</span>
+            <span>🎯 Tujuan: ${order.alamat_b || '-'}</span>
+            <span>📏 Jarak: ${order.jarak || '-'}</span>
+            <span>⏱️ Durasi: ${order.durasi || '-'}</span>
+            <span>💵 Harga: ${order.harga || '-'}</span>
+            <span>🚘 Kendaraan: ${order.vehicle || '-'}</span>
+            <span>⏰ Waktu: ${order.waktu_order || '-'}</span>
+            <span>📌 Status: ${order.status || '-'}</span>
+          </div>
+          <button 
+            onclick="ambilOrder('${uid}')" 
+            ${order.status !== 'menunggu driver' ? 'disabled' : ''}
+            ${isCancelled ? 'class="cancelled-btn"' : ''}
+          >
+            ${isCancelled ? 'Order Dibatalkan' : 'Ambil Order'}
+          </button>
+        `;
+        orderList.appendChild(div);
+
+        // Jika order dibatalkan, kirim notifikasi
+        if (isCancelled && order.driver_id === driverUID) {
+          sendToAppInventor({
+            type: "order_dibatalkan",
+            order_id: uid,
+            message: "Order telah dibatalkan oleh pelanggan",
+            data: order
+          });
         }
       });
-    } else {
-      document.getElementById("info").innerText = "Parameter tidak lengkap.";
+    });
+
+    function ambilOrder(uid) {
+      const ref = firebase.database().ref("GoMotorcycle/" + uid);
+      ref.once("value").then(snapshot => {
+        let data = snapshot.val();
+        if (typeof data === "string") {
+          try { data = JSON.parse(data); } catch {}
+        }
+
+        if (data.status === "menunggu driver") {
+          ref.update({
+            status: "diambil",
+            driver_id: driverUID,
+            waktu_ambil: new Date().toLocaleString()
+          });
+
+          sendToAppInventor({
+            ...data,
+            type: "order_diambil",
+            status: "diambil",
+            order_id: uid,
+            driver_id: driverUID,
+            waktu_ambil: new Date().toLocaleString()
+          });
+
+          alert("✅ Order berhasil diambil!");
+        } else {
+          alert("❌ Order sudah diambil oleh driver lain.");
+        }
+      });
     }
+
+    // Listen untuk perubahan status order
+    db.on("child_changed", snapshot => {
+      const order = snapshot.val();
+      if (typeof order === "string") {
+        try { order = JSON.parse(order); } catch {}
+      }
+      
+      if (order.status === "order dibatalkan" && order.driver_id === driverUID) {
+        sendToAppInventor({
+          type: "order_dibatalkan",
+          order_id: snapshot.key,
+          message: "Order telah dibatalkan oleh pelanggan",
+          data: order
+        });
+        
+        alert(`⚠️ Order ${snapshot.key} telah dibatalkan`);
+      }
+    });
   </script>
 </body>
 </html>
