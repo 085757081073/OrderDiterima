@@ -2,173 +2,133 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Detail Order</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detail Order Diambil</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: sans-serif;
-      background-color: #f9f9f9;
-      display: flex;
-      flex-direction: column;
+    body {
+      background-color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 20px;
+      color: #333;
     }
-    #map {
-      width: 100%;
-      height: 75vh;
-      background-color: #ddd;
+    h2 {
+      text-align: center;
+      color: #28a745;
     }
-    #info {
-      flex-grow: 1;
-      overflow-y: auto;
-      padding: 15px;
+    .order {
+      border: 2px solid #28a745;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #f0fff4;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      margin-top: 20px;
+    }
+    .order span {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
     }
     .label {
       font-weight: bold;
-      display: block;
-      margin-top: 8px;
+      color: #28a745;
     }
-    .value {
-      margin-bottom: 10px;
+    .buttons {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
     }
-    button {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      font-size: 16px;
-      background-color: #007bff;
-      color: white;
+    .buttons button {
+      padding: 10px 15px;
+      font-weight: bold;
       border: none;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
+      color: white;
     }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .note {
-      font-size: 12px;
-      color: #555;
-      margin-top: 10px;
-      background: #fff8c6;
-      padding: 8px;
-      border-radius: 6px;
-    }
+    .call-btn { background-color: #007bff; }
+    .wa-btn { background-color: #25d366; }
+    .done-btn { background-color: #6f42c1; }
   </style>
 </head>
 <body>
 
-  <div id="map">Memuat peta...</div>
+<h2>✅ Order Telah Diambil</h2>
+<div id="orderDetail">Memuat data...</div>
 
-  <div id="info">
-    <div><span class="label">🧍‍♂️ Nama:</span> <span id="name" class="value"></span></div>
-    <div><span class="label">📍 Dari:</span> <span id="alamat_a" class="value"></span></div>
-    <div><span class="label">🏁 Tujuan:</span> <span id="alamat_b" class="value"></span></div>
-    <div><span class="label">📏 Jarak:</span> <span id="jarak" class="value" style="color: #007bff; font-size: 18px;"></span></div>
-    <div><span class="label">💰 Harga:</span> <span id="harga" class="value" style="color: #28a745; font-size: 18px;"></span></div>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <button onclick="navigasi('pickup')">🧭 Navigasi ke Titik Jemput</button>
-    <button onclick="navigasi('tujuan')">🧭 Navigasi ke Tujuan</button>
-    <button onclick="chat()">💬 Chat Penumpang</button>
-    <button onclick="tiba()">📍 Saya Sudah Tiba</button>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const apiKey = params.get("apiKey");
+  const databaseURL = params.get("databaseURL");
+  const projectId = params.get("projectId");
+  const uid = params.get("uid_order");
 
-    <div class="note">Sedang mengambil data order. Jangan batalkan orderan jika informasi belum tampil. Cek koneksi internet Anda.</div>
-  </div>
+  if (!apiKey || !databaseURL || !projectId || !uid) {
+    document.getElementById("orderDetail").innerHTML = "<p>❌ Parameter tidak lengkap.</p>";
+  } else {
+    const firebaseConfig = { apiKey, databaseURL, projectId };
+    firebase.initializeApp(firebaseConfig);
 
-  <!-- Parameter & Google Maps -->
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const fromLat = parseFloat(params.get("from_lat"));
-    const fromLng = parseFloat(params.get("from_lng"));
-    const toLat = parseFloat(params.get("to_lat"));
-    const toLng = parseFloat(params.get("to_lng"));
-    const apiKey = params.get("apiKey");
-
-    document.getElementById("name").textContent = params.get("name") || "-";
-    document.getElementById("alamat_a").textContent = params.get("alamat_a") || "-";
-    document.getElementById("alamat_b").textContent = params.get("alamat_b") || "-";
-    document.getElementById("jarak").textContent = params.get("jarak") || "-";
-    document.getElementById("harga").textContent = params.get("harga") || "-";
-
-    function initMap() {
-      const map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: fromLat, lng: fromLng },
-        zoom: 14
-      });
-      const directionsService = new google.maps.DirectionsService();
-      const directionsRenderer = new google.maps.DirectionsRenderer();
-      directionsRenderer.setMap(map);
-      const request = {
-        origin: { lat: fromLat, lng: fromLng },
-        destination: { lat: toLat, lng: toLng },
-        travelMode: 'DRIVING'
-      };
-      directionsService.route(request, (result, status) => {
-        if (status === 'OK') {
-          directionsRenderer.setDirections(result);
-        } else {
-          alert('Gagal memuat arah: ' + status);
-        }
-      });
-    }
-
-    function navigasi(tipe) {
-      const url = tipe === "pickup"
-        ? `https://www.google.com/maps/dir/?api=1&destination=${fromLat},${fromLng}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${toLat},${toLng}`;
-      window.location.href = url;
-    }
-
-    function chat() {
-      const phone = params.get("phone") || "";
-      if (phone) {
-        window.location.href = `https://wa.me/${phone.replace(/^0/, '62')}`;
-      } else {
-        alert("Nomor penumpang tidak tersedia.");
+    const ref = firebase.database().ref("GoMotorcycle/" + uid);
+    ref.on("value", snapshot => {
+      let order = snapshot.val();
+      if (!order) {
+        document.getElementById("orderDetail").innerHTML = "<p>⚠️ Data order tidak ditemukan.</p>";
+        return;
       }
-    }
 
-    function tiba() {
-      if (window.AppInventor) {
-        window.AppInventor.setWebViewString("driver_tiba");
-      } else {
-        window.location.href = "webstring://driver_tiba";
+      if (typeof order === "string") {
+        try { order = JSON.parse(order); } catch {}
       }
-    }
-  </script>
 
-  <!-- Inject Google Maps -->
-  <script async defer id="mapScript"></script>
-  <script>
-    const apiScript = document.getElementById("mapScript");
-    apiScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
-  </script>
+      const div = document.createElement("div");
+      div.className = "order";
+      div.innerHTML = `
+        <span><span class="label">Nama:</span> ${order.name || '-'}</span>
+        <span><span class="label">No HP:</span> ${order.PhoneNumber || '-'}</span>
+        <span><span class="label">Alamat Jemput:</span> ${order.alamat_a || '-'}</span>
+        <span><span class="label">Alamat Tujuan:</span> ${order.alamat_b || '-'}</span>
+        <span><span class="label">Jarak:</span> ${order.jarak || '-'}</span>
+        <span><span class="label">Durasi:</span> ${order.durasi || '-'}</span>
+        <span><span class="label">Harga:</span> Rp ${order.harga || '-'}</span>
+        <span><span class="label">Kendaraan:</span> ${order.vehicle || '-'}</span>
+        <span><span class="label">Status:</span> ${order.status || '-'}</span>
+        <span><span class="label">Waktu Order:</span> ${order.waktu_order || '-'}</span>
+        <span><span class="label">Waktu Ambil:</span> ${order.waktu_ambil || '-'}</span>
+        <div class="buttons">
+          <button class="call-btn" onclick="callNumber('${order.PhoneNumber || ''}')">📞 Telepon</button>
+          <button class="wa-btn" onclick="whatsapp('${order.PhoneNumber || ''}', '${order.name || 'Penumpang'}')">💬 Chat WA</button>
+          <button class="done-btn" onclick="selesaikanOrder()">✅ Selesaikan</button>
+        </div>
+      `;
+      document.getElementById("orderDetail").innerHTML = "";
+      document.getElementById("orderDetail").appendChild(div);
+    });
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script>
-    const databaseURL = params.get("databaseURL");
-    const orderId = params.get("order_id");
-
-    if (databaseURL && orderId) {
-      const config = { databaseURL };
-      const app = firebase.initializeApp(config, "DriverApp");
-      const db = firebase.database(app);
-      const orderRef = db.ref("GoMotorcycle/" + orderId);
-
-      orderRef.on("value", snapshot => {
-        const data = snapshot.val();
-        if (data === null || data.status === "orderan dibatalkan") {
-          alert("❌ Order dibatalkan oleh penumpang.");
-          if (window.AppInventor) {
-            window.AppInventor.setWebViewString("order_dibatalkan");
-          } else {
-            window.location.href = "webstring://order_dibatalkan";
-          }
-        }
+    window.selesaikanOrder = function () {
+      const waktu_selesai = new Date().toLocaleString();
+      ref.update({
+        status: "selesai",
+        waktu_selesai
       });
-    }
-  </script>
+      alert("🎉 Order berhasil diselesaikan.");
+    };
+
+    window.callNumber = function (nohp) {
+      if (!nohp) return alert("Nomor telepon tidak tersedia.");
+      window.location.href = `tel:${nohp}`;
+    };
+
+    window.whatsapp = function (nohp, nama) {
+      const no = nohp.replace(/^0/, '62'); // ubah 08xxx jadi 628xxx
+      const pesan = `Halo ${nama}, saya driver GoMotorcycle.`;
+      window.open(`https://wa.me/${no}?text=${encodeURIComponent(pesan)}`, '_blank');
+    };
+  }
+</script>
+
 </body>
 </html>
