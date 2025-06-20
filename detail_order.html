@@ -16,7 +16,7 @@
       font-size: 14px; font-weight: bold; background: rgba(255,255,255,0.7);
       padding: 8px 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    #map { height: 300px; width: 100%; }
+    #map { height: 300px; width: 100%; min-height: 250px; }
     .floating-nav {
       position: absolute; top: 110px; right: 10px; z-index: 1001;
       display: flex; flex-direction: column; gap: 5px;
@@ -91,40 +91,35 @@
     let arrivalBtn = document.getElementById('arrivalBtn');
     let isNearPickup = false, isPickupCompleted = false;
     let pelangganPhone = '';
-    // Ambil parameter dari URL
-const urlParams = new URLSearchParams(window.location.search);
-const apiKey = urlParams.get("apiKey");
-const databaseURL = urlParams.get("databaseURL");
-const orderId = urlParams.get("orderId");
-const driverId = urlParams.get("driverId") || "driver123"; // bisa opsional juga
 
-// Validasi
-if (!apiKey || !databaseURL || !orderId) {
-  alert("Parameter URL tidak lengkap. Pastikan ada apiKey, databaseURL, dan orderId.");
-  throw new Error("Missing URL parameters");
-}
+    const urlParams = new URLSearchParams(window.location.search);
+    const apiKey = urlParams.get("apiKey");
+    const databaseURL = urlParams.get("databaseURL");
+    const orderId = urlParams.get("orderId");
+    const driverId = urlParams.get("driverId") || "driver123";
 
-// Inisialisasi Firebase
-const firebaseConfig = {
-  apiKey: apiKey,
-  databaseURL: databaseURL
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const orderRef = db.ref("pesanan/" + orderId);
+    if (!apiKey || !databaseURL || !orderId) {
+      alert("Parameter URL tidak lengkap.");
+      throw new Error("Missing URL parameters");
+    }
+
+    const firebaseConfig = { apiKey, databaseURL };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const orderRef = db.ref("pesanan/" + orderId);
 
     orderRef.on("value", (snapshot) => {
-      const orderData = snapshot.val();
-      if (!orderData) return;
+      const data = snapshot.val();
+      if (!data) return;
 
-      pelangganPhone = orderData.PhoneNumber || '';
-      document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
-      document.getElementById('pickup-address').textContent = orderData.alamat_a || "-";
-      document.getElementById('dropoff-address').textContent = orderData.alamat_b || "-";
-      document.getElementById('price').textContent = orderData.harga ? `Rp${orderData.harga}` : "Rp -";
+      pelangganPhone = data.PhoneNumber || '';
+      document.getElementById('passenger-name').textContent = data.name || "Pelanggan";
+      document.getElementById('pickup-address').textContent = data.alamat_a || "-";
+      document.getElementById('dropoff-address').textContent = data.alamat_b || "-";
+      document.getElementById('price').textContent = data.harga ? `Rp ${data.harga}` : "Rp -";
 
-      const pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
-      const dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
+      const pickupCoords = L.latLng(data.from_lat, data.from_lng || data.from_ing);
+      const dropoffCoords = L.latLng(data.to_lat, data.to_lng || data.to_ing);
 
       if (!pickupMarker) {
         pickupMarker = L.marker(pickupCoords, {
@@ -146,16 +141,20 @@ const orderRef = db.ref("pesanan/" + orderId);
       startTrackingDriver(pickupCoords);
     });
 
+    const map = L.map('map').setView([1.45907, 124.80219], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
     function startTrackingDriver(pickupCoords) {
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(
           (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            orderRef.update({
-  lat_driver: lat,
-  lng_driver: lng
-});
+
+            orderRef.update({ lat_driver: lat, lng_driver: lng });
+
             updateDriverPosition(lat, lng, pickupCoords);
           },
           (err) => console.error("Lokasi error:", err),
@@ -166,6 +165,7 @@ const orderRef = db.ref("pesanan/" + orderId);
 
     function updateDriverPosition(lat, lng, pickupCoords) {
       const driverCoords = L.latLng(lat, lng);
+
       if (!driverMarker) {
         driverMarker = L.marker(driverCoords, {
           icon: L.icon({
@@ -180,7 +180,7 @@ const orderRef = db.ref("pesanan/" + orderId);
 
       const distance = map.distance(driverCoords, pickupCoords);
       document.getElementById('countdown-info').textContent =
-        `Jarak ke penjemputan: ${(distance/1000).toFixed(2)} km - Estimasi: ${Math.round(distance/1000/0.4*60)} menit`;
+        `Jarak ke penjemputan: ${(distance / 1000).toFixed(2)} km - Estimasi: ${Math.round(distance / 1000 / 0.4 * 60)} menit`;
 
       if (distance < 200 && !isPickupCompleted) {
         isNearPickup = true;
@@ -195,7 +195,7 @@ const orderRef = db.ref("pesanan/" + orderId);
       }
     }
 
-    arrivalBtn.addEventListener('click', function() {
+    arrivalBtn.addEventListener('click', () => {
       if (isNearPickup && !isPickupCompleted) {
         orderRef.update({ status_driver: "tiba_di_jemput" }).then(() => {
           arrivalBtn.textContent = "Go";
@@ -232,11 +232,8 @@ const orderRef = db.ref("pesanan/" + orderId);
     function chatUser() {
       if (!pelangganPhone) return;
       let phone = pelangganPhone.replace(/\D/g, '');
-      if (phone.startsWith('0')) {
-        phone = '62' + phone.slice(1);
-      } else if (phone.startsWith('8')) {
-        phone = '62' + phone;
-      }
+      if (phone.startsWith('0')) phone = '62' + phone.slice(1);
+      else if (phone.startsWith('8')) phone = '62' + phone;
       window.open(`https://wa.me/${phone}`, '_blank');
     }
 
