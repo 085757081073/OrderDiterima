@@ -155,10 +155,10 @@
   <div id="map"></div>
 
   <div class="floating-nav">
-    <button onclick="openNativeMap('pickup')">
+    <button onclick="openNativeNavigation('pickup')">
       <span style="font-size:18px">🧭</span> Jemput
     </button>
-    <button onclick="openNativeMap('dropoff')">
+    <button onclick="openNativeNavigation('dropoff')">
       <span style="font-size:18px">🧭</span> Antar
     </button>
   </div>
@@ -209,77 +209,76 @@
       }, 3000);
     }
 
-    // Fungsi untuk membuka aplikasi maps native
-    function openNativeMap(type) {
-  if (!orderData) {
-    showNotification("Data lokasi belum dimuat", true);
-    return;
-  }
-
-  let lat, lng;
-  if (type === 'pickup') {
-    lat = orderData.from_lat;
-    lng = orderData.from_lng || orderData.from_ing;
-  } else {
-    lat = orderData.to_lat;
-    lng = orderData.to_lng || orderData.to_ing;
-  }
-
-  const urls = {
-    androidIntent: `intent://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;end`,
-    androidFallback: `https://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
-    ios: `maps://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
-    web: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-  };
-
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  if (isAndroid) {
-    try {
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = urls.androidIntent;
-      document.body.appendChild(iframe);
-      
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-        window.location.href = urls.androidFallback;
-      }, 500);
-    } catch (e) {
-      console.error("Error opening intent:", e);
-      window.location.href = urls.androidFallback;
-    }
-  } else if (isIOS) {
-    window.location.href = urls.ios;
-    setTimeout(() => {
-      window.location.href = urls.web;
-    }, 500);
-  } else {
-    window.open(urls.web, '_blank');
-  }
-}
-
-    // Fungsi untuk memformat nomor telepon
-    function formatPhoneNumber(phone) {
-      if (!phone) return '';
-      let cleaned = phone.replace(/\D/g, '');
-      if (cleaned.startsWith('0')) {
-        return '62' + cleaned.substring(1);
-      } else if (cleaned.startsWith('8')) {
-        return '62' + cleaned;
+    // Fungsi untuk membuka navigasi di aplikasi maps native
+    function openNativeNavigation(type) {
+      if (!orderData) {
+        showNotification("Data lokasi belum dimuat", true);
+        return;
       }
-      return cleaned;
+
+      let lat, lng;
+      if (type === 'pickup') {
+        lat = orderData.from_lat;
+        lng = orderData.from_lng || orderData.from_ing;
+      } else {
+        lat = orderData.to_lat;
+        lng = orderData.to_lng || orderData.to_ing;
+      }
+
+      // URL untuk berbagai platform
+      const urls = {
+        android: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,
+        ios: `maps://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
+        web: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+      };
+
+      // Deteksi perangkat
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // Buka aplikasi maps sesuai platform
+      if (isAndroid) {
+        // Coba buka Google Maps di Android
+        window.location.href = `google.navigation:q=${lat},${lng}`;
+        setTimeout(() => {
+          // Fallback ke Google Maps web jika gagal
+          window.open(urls.android, '_blank');
+        }, 500);
+      } else if (isIOS) {
+        // Buka Apple Maps di iOS
+        window.location.href = urls.ios;
+        setTimeout(() => {
+          // Fallback ke Google Maps web jika gagal
+          window.open(urls.web, '_blank');
+        }, 500);
+      } else {
+        // Fallback untuk desktop/browser lain
+        window.open(urls.web, '_blank');
+      }
     }
 
-    // Fungsi untuk chat pelanggan
+    // Fungsi untuk memformat harga dengan benar
+    function formatCurrency(amount) {
+      if (amount === undefined || amount === null) return "Rp -";
+      
+      // Bersihkan format harga (hapus karakter non-digit)
+      const cleanedAmount = String(amount).replace(/\D/g, '');
+      const num = Number(cleanedAmount);
+      
+      if (isNaN(num)) return "Rp -";
+      
+      return "Rp" + num.toLocaleString('id-ID');
+    }
+
+    // Fungsi untuk chat pelanggan via WhatsApp
     function chatUser() {
       if (!pelangganPhone) {
         showNotification("Nomor pelanggan tidak tersedia", true);
         return;
       }
       
-      const formattedPhone = formatPhoneNumber(pelangganPhone);
+      // Format nomor telepon (pastikan diawali 62)
+      const formattedPhone = pelangganPhone.replace(/^0/, '62').replace(/\D/g, '');
       const waUrl = `https://wa.me/${formattedPhone}`;
       
       window.open(waUrl, '_blank');
@@ -424,18 +423,6 @@
       document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
       document.getElementById('price').textContent = formatCurrency(orderData.harga);
 
-// Tambahkan fungsi ini di bagian script
-function formatCurrency(amount) {
-  if (!amount && amount !== 0) return "Rp -";
-  
-  const num = Number(amount);
-  if (isNaN(num)) {
-    console.error("Invalid price format:", amount);
-    return "Rp -";
-  }
-  
-  return "Rp" + num.toLocaleString('id-ID');
-}
       // Set marker lokasi
       pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
       dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
