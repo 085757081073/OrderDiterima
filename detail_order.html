@@ -8,16 +8,16 @@
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
     html, body {
-      margin: 0; 
-      padding: 0; 
+      margin: 0;
+      padding: 0;
       height: 100%;
       font-family: Arial, sans-serif;
     }
-    #map { 
-      position: absolute; 
-      top: 0; 
-      bottom: 0; 
-      width: 100%; 
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
     }
     .error-message {
       color: red;
@@ -32,9 +32,8 @@
 </head>
 <body>
   <div id="map"></div>
-  
+
   <script>
-    // Daftar jenis kendaraan dan ikonnya
     const vehicleIcons = {
       motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
       mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
@@ -42,23 +41,14 @@
       bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
       pickup: 'https://cdn-icons-png.flaticon.com/512/9017/9017605.png',
       pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png',
-      // Default akan menggunakan motor jika tidak dikenali
       default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
     };
 
-    // Ambil parameter dari URL
     const urlParams = new URLSearchParams(window.location.search);
-    
-    // Parameter wajib
     const mapboxToken = urlParams.get('token');
     const from = urlParams.get('from');
     const to = urlParams.get('to');
-    
-    // Parameter kendaraan - format: vehicle=LAT,LNG,TYPE
     const vehicleParam = urlParams.get('vehicle') || `${from},motor`;
-    const [vehicleCoordsStr, vehicleType] = vehicleParam.split(',').slice(0, 2).concat(vehicleParam.split(',').slice(-1));
-    const vehicle = vehicleCoordsStr || from;
-    const vehicleTypeLower = (vehicleType || 'motor').toLowerCase();
 
     // Validasi parameter
     if (!mapboxToken || !from || !to) {
@@ -71,7 +61,7 @@
             <li><strong>from</strong> (lokasi penjemputan, contoh: -6.2,106.8)</li>
             <li><strong>to</strong> (lokasi tujuan, contoh: -6.22,106.85)</li>
           </ul>
-          <p>Parameter kendaraan:</p>
+          <p>Parameter kendaraan opsional:</p>
           <ul style="text-align:left; display:inline-block;">
             <li><strong>vehicle</strong> (format: latitude,longitude,type)</li>
             <li>Contoh: &vehicle=-6.21,106.83,motor</li>
@@ -81,7 +71,6 @@
       throw new Error('Parameter URL tidak lengkap');
     }
 
-    // Konversi koordinat
     function parseCoordinates(coordString) {
       const parts = coordString.split(',').map(Number);
       if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) {
@@ -90,12 +79,19 @@
       return [parts[1], parts[0]]; // [lng, lat]
     }
 
-    let fromCoords, toCoords, vehicleCoords;
-    
+    let fromCoords, toCoords, vehicleCoords, vehicleTypeLower;
     try {
       fromCoords = parseCoordinates(from);
       toCoords = parseCoordinates(to);
-      vehicleCoords = parseCoordinates(vehicle);
+
+      const parts = vehicleParam.split(',');
+      const vehicleLat = parseFloat(parts[0]);
+      const vehicleLng = parseFloat(parts[1]);
+      vehicleTypeLower = (parts[2] || 'motor').toLowerCase();
+      if (isNaN(vehicleLat) || isNaN(vehicleLng)) {
+        throw new Error('Koordinat kendaraan tidak valid');
+      }
+      vehicleCoords = [vehicleLng, vehicleLat];
     } catch (e) {
       document.body.innerHTML = `
         <div class="error-message">
@@ -118,18 +114,18 @@
 
     map.on('load', async () => {
       try {
-        // Marker penjemputan (hijau)
+        // Marker penjemputan
         new mapboxgl.Marker({ color: '#4CAF50' })
           .setLngLat(fromCoords)
           .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
           .addTo(map);
-        
-        // Marker tujuan (merah)
+
+        // Marker tujuan
         new mapboxgl.Marker({ color: '#FF5252' })
           .setLngLat(toCoords)
           .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
           .addTo(map);
-        
+
         // Marker kendaraan
         const iconUrl = vehicleIcons[vehicleTypeLower] || vehicleIcons.default;
         const el = document.createElement('div');
@@ -137,7 +133,7 @@
         el.style.width = '40px';
         el.style.height = '40px';
         el.style.backgroundSize = 'cover';
-        
+
         new mapboxgl.Marker(el)
           .setLngLat(vehicleCoords)
           .setPopup(new mapboxgl.Popup().setHTML(`<b>Posisi Kendaraan (${vehicleTypeLower})</b>`))
@@ -149,13 +145,12 @@
           `${fromCoords.join(',')};${toCoords.join(',')}` +
           `?geometries=geojson&access_token=${mapboxgl.accessToken}`
         );
-        
+
         if (!response.ok) throw new Error('Gagal mendapatkan rute');
-        
         const data = await response.json();
         const route = data.routes[0].geometry;
 
-        // Tambahkan rute ke peta
+        // Tambahkan garis rute
         map.addSource('route', {
           type: 'geojson',
           data: {
@@ -168,23 +163,37 @@
           id: 'route',
           type: 'line',
           source: 'route',
-          layout: { 
-            'line-cap': 'round', 
-            'line-join': 'round' 
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
           },
           paint: {
             'line-color': '#00BFFF',
-            'line-width': 3,
+            'line-width': 4,
             'line-opacity': 0.8
           }
         });
 
-        // Sesuaikan viewport
+        // Zoom otomatis
         const bounds = new mapboxgl.LngLatBounds();
         bounds.extend(fromCoords);
         bounds.extend(toCoords);
         bounds.extend(vehicleCoords);
         map.fitBounds(bounds, { padding: 50 });
+
+        // Kirim info ke Kodular
+        const distanceKm = (data.routes[0].distance / 1000).toFixed(2);
+        const durationMin = (data.routes[0].duration / 60).toFixed(1);
+        const info = {
+          jarak: distanceKm,
+          durasi: durationMin
+        };
+        if (window.AndroidInterface?.postMessage) {
+          window.AndroidInterface.postMessage(JSON.stringify(info));
+        }
+        if (window.AppInventor) {
+          window.AppInventor.setWebViewString(JSON.stringify(info));
+        }
 
       } catch (error) {
         console.error('Error:', error);
