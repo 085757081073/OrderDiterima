@@ -91,21 +91,27 @@
     let arrivalBtn = document.getElementById('arrivalBtn');
     let isNearPickup = false, isPickupCompleted = false;
     let pelangganPhone = '';
-    const driverId = "driver123"; // ganti sesuai ID driver
-    const firebaseConfig = {
-      apiKey: "AIzaSyAFWLUF2aH-lD6UTofpRsy1rXbBrLHTagI",
-      databaseURL: "https://chatting-87e87-default-rtdb.firebaseio.com"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // Ambil parameter dari URL
+const urlParams = new URLSearchParams(window.location.search);
+const apiKey = urlParams.get("apiKey");
+const databaseURL = urlParams.get("databaseURL");
+const orderId = urlParams.get("orderId");
+const driverId = urlParams.get("driverId") || "driver123"; // bisa opsional juga
 
-    const map = L.map('map').setView([1.45907, 124.80219], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+// Validasi
+if (!apiKey || !databaseURL || !orderId) {
+  alert("Parameter URL tidak lengkap. Pastikan ada apiKey, databaseURL, dan orderId.");
+  throw new Error("Missing URL parameters");
+}
 
-    const orderId = "NkUvJ52CxdhkQGjswsJqsJfBp572";
-    const orderRef = db.ref("pesanan/" + orderId);
+// Inisialisasi Firebase
+const firebaseConfig = {
+  apiKey: apiKey,
+  databaseURL: databaseURL
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const orderRef = db.ref("pesanan/" + orderId);
 
     orderRef.on("value", (snapshot) => {
       const orderData = snapshot.val();
@@ -146,7 +152,10 @@
           (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            db.ref("drivers_location/" + driverId).set({ lat, lng });
+            orderRef.update({
+  lat_driver: lat,
+  lng_driver: lng
+});
             updateDriverPosition(lat, lng, pickupCoords);
           },
           (err) => console.error("Lokasi error:", err),
