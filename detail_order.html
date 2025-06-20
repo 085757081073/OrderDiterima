@@ -1,3 +1,5 @@
+
+</html></html>
 <!DOCTYPE html>
 <html>
 <head>
@@ -75,7 +77,6 @@
   </div>
 
   <div class="countdown" id="countdown-info">Menghitung jarak...</div>
-
   <div id="map"></div>
 
   <div class="floating-nav">
@@ -94,7 +95,6 @@
     <div class="price" id="price">Rp -</div>
   </div>
 
-  <!-- Leaflet & Firebase -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -106,11 +106,10 @@
     }
 
     const firebaseURL = getParam('url');
-    const token = getParam('token'); // saat ini belum digunakan
     const orderKey = getParam('order') || 'current';
 
     const firebaseConfig = {
-      apiKey: "dummy", // bisa kosong jika tidak pakai auth
+      apiKey: "dummy",
       databaseURL: firebaseURL
     };
     firebase.initializeApp(firebaseConfig);
@@ -120,66 +119,59 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     let driverMarker;
 
-    db.ref("orders/" + orderKey).once("value").then(snapshot => {
+    db.ref("drivers/" + orderKey).once("value").then(snapshot => {
       const data = snapshot.val();
       if (!data) return;
 
-      document.getElementById('passenger-name').textContent = data.nama;
-      document.getElementById('pickup-address').textContent = data.alamat_jemput;
-      document.getElementById('dropoff-address').textContent = data.alamat_tujuan;
-      document.getElementById('price').textContent = "Rp " + data.harga;
+      document.getElementById('passenger-name').textContent = data.name || "Penumpang";
+      document.getElementById('pickup-address').textContent = data.alamat_a;
+      document.getElementById('dropoff-address').textContent = data.alamat_b;
+      document.getElementById('price').textContent = "Rp " + data.harga_total;
 
-      const latlngPickup = L.latLng(data.pickup_lat, data.pickup_lng);
-      const latlngDropoff = L.latLng(data.drop_lat, data.drop_lng);
+      const latlngPickup = L.latLng(data.from_lat, data.from_lng);
+      const latlngDropoff = L.latLng(data.to_lat, data.to_lng);
 
       L.marker(latlngPickup).addTo(map).bindPopup("📍 Jemput");
       L.marker(latlngDropoff).addTo(map).bindPopup("📍 Tujuan");
-
       map.fitBounds([latlngPickup, latlngDropoff]);
 
-      const driverRef = db.ref("drivers/" + orderKey);
-driverRef.once("value").then(snap => {
-  const driverData = snap.val();
-  if (!driverData) return;
+      const vehicle = data.vehicle || 'motor';
+      const iconURL = {
+        motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+        mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
+        kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png'
+      }[vehicle];
 
-  const vehicle = driverData.vehicle || 'motor'; // default motor
-  const iconURL = {
-    motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-    mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
-    kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png'
-  }[vehicle];
+      db.ref("drivers/" + orderKey + "/location").on("value", locSnap => {
+        const loc = locSnap.val();
+        if (!loc) return;
 
-  driverRef.child("location").on("value", locSnap => {
-    const loc = locSnap.val();
-    if (!loc) return;
+        const driverPos = L.latLng(loc.lat, loc.lng);
+        if (!driverMarker) {
+          driverMarker = L.marker(driverPos, {
+            icon: L.icon({
+              iconUrl: iconURL,
+              iconSize: [40, 40],
+              iconAnchor: [20, 40],
+              popupAnchor: [0, -40]
+            })
+          }).addTo(map);
+        } else {
+          driverMarker.setLatLng(driverPos);
+        }
 
-    const driverPos = L.latLng(loc.lat, loc.lng);
-    if (!driverMarker) {
-      driverMarker = L.marker(driverPos, {
-        icon: L.icon({
-          iconUrl: iconURL,
-          iconSize: [40, 40],
-          iconAnchor: [20, 40],
-          popupAnchor: [0, -40]
-        })
-      }).addTo(map);
-    } else {
-      driverMarker.setLatLng(driverPos);
-    }
-
-    const jarak = map.distance(driverPos, latlngPickup) / 1000;
-    const waktu = Math.round(jarak / 0.4 * 60); // estimasi 24km/jam
-    document.getElementById('countdown-info').textContent =
-      `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
-  });
-});
+        const jarak = map.distance(driverPos, latlngPickup) / 1000;
+        const waktu = Math.round(jarak / 0.4 * 60);
+        document.getElementById('countdown-info').textContent =
+          `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
+      });
     });
 
     function openNav(type) {
-      db.ref("orders/" + orderKey).once("value").then(snapshot => {
+      db.ref("drivers/" + orderKey).once("value").then(snapshot => {
         const data = snapshot.val();
-        let targetLat = type === "pickup" ? data.pickup_lat : data.drop_lat;
-        let targetLng = type === "pickup" ? data.pickup_lng : data.drop_lng;
+        let targetLat = type === "pickup" ? data.from_lat : data.to_lat;
+        let targetLng = type === "pickup" ? data.from_lng : data.to_lng;
         window.open(`https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`, '_blank');
       });
     }
@@ -190,10 +182,10 @@ driverRef.once("value").then(snap => {
 
     function cancelOrder() {
       if (confirm("Yakin ingin membatalkan order?")) {
-        db.ref("orders/" + orderKey).remove();
+        db.ref("drivers/" + orderKey).remove();
         alert("Order dibatalkan.");
       }
     }
   </script>
 </body>
-</html></html>
+</html>
