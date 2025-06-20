@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <title>Detail Order Driver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -142,6 +143,14 @@
       from { opacity: 0; top: 10px; }
       to { opacity: 1; top: 20px; }
     }
+    .mapboxgl-ctrl-geocoder {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .mapbox-directions-component {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
   </style>
 </head>
 <body>
@@ -177,25 +186,76 @@
 
   <div class="notification" id="notification"></div>
 
-  <!-- Leaflet & Firebase -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Mapbox JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+  <!-- Mapbox Directions Plugin -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js"></script>
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css" type="text/css">
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
     // Variabel global
+    let map;
     let driverMarker, pickupMarker, dropoffMarker;
     let arrivalBtn = document.getElementById('arrivalBtn');
     let isNearPickup = false, isPickupCompleted = false;
     let pelangganPhone = '';
     let pickupCoords, dropoffCoords;
     let orderData = {};
+    let directions;
 
-    // Inisialisasi peta
-    const map = L.map('map').setView([-6.2, 106.8], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+    // Inisialisasi Mapbox
+    function initMapbox() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mapboxToken = urlParams.get('mapboxToken');
+      
+      if (!mapboxToken) {
+        showNotification("Mapbox token tidak ditemukan", true);
+        return;
+      }
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      // Inisialisasi peta
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [106.8, -6.2], // Default Jakarta
+        zoom: 13
+      });
+      
+      // Tambahkan kontrol navigasi
+      map.addControl(new mapboxgl.NavigationControl());
+      
+      // Inisialisasi directions
+      directions = new MapboxDirections({
+        accessToken: mapboxgl.accessToken,
+        unit: 'metric',
+        profile: 'mapbox/driving',
+        controls: {
+          inputs: false,
+          instructions: false,
+          profileSwitcher: false
+        },
+        interactive: false
+      });
+      
+      map.addControl(directions, 'top-left');
+      
+      // Set marker driver
+      const el = document.createElement('div');
+      el.className = 'driver-marker';
+      el.style.backgroundImage = 'url(https://cdn-icons-png.flaticon.com/128/5811/5811823.png)';
+      el.style.width = '40px';
+      el.style.height = '40px';
+      el.style.backgroundSize = '100%';
+      
+      driverMarker = new mapboxgl.Marker(el)
+        .setLngLat([106.8, -6.2])
+        .addTo(map);
+    }
 
     // Fungsi untuk menampilkan notifikasi
     function showNotification(message, isError = false) {
@@ -322,22 +382,18 @@
 
     // Fungsi untuk update posisi driver
     function updateDriverPosition(lat, lng) {
-      const driverCoords = L.latLng(lat, lng);
+      const driverCoords = [lng, lat];
       
-      if (!driverMarker) {
-        driverMarker = L.marker(driverCoords, {
-          icon: L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-            iconSize: [40, 40],
-            iconAnchor: [20, 40]
-          })
-        }).addTo(map).bindPopup("Posisi Anda");
-      } else {
-        driverMarker.setLatLng(driverCoords);
-      }
-
-      // Hitung jarak ke lokasi penjemputan
-      const distance = map.distance(driverCoords, pickupCoords);
+      // Update marker posisi driver
+      driverMarker.setLngLat(driverCoords);
+      
+      // Hitung jarak ke lokasi penjemputan (dalam meter)
+      const distance = turf.distance(
+        turf.point(driverCoords),
+        turf.point([pickupCoords.lng, pickupCoords.lat]),
+        { units: 'kilometers' }
+      ) * 1000;
+      
       const duration = Math.round(distance / 1000 / 0.4 * 60); // Asumsi 40km/jam
       
       document.getElementById('countdown-info').textContent = 
@@ -365,6 +421,24 @@
         }).catch(error => {
           console.error("Gagal update posisi:", error);
         });
+      }
+      
+      // Update rute jika sudah ada pickup dan dropoff
+      if (pickupCoords && dropoffCoords) {
+        updateRoute(driverCoords);
+      }
+    }
+
+    // Fungsi untuk memperbarui rute
+    function updateRoute(currentLocation) {
+      if (!isPickupCompleted) {
+        // Rute dari lokasi driver ke pickup point
+        directions.setOrigin(currentLocation);
+        directions.setDestination([pickupCoords.lng, pickupCoords.lat]);
+      } else {
+        // Rute dari lokasi driver ke dropoff point
+        directions.setOrigin(currentLocation);
+        directions.setDestination([dropoffCoords.lng, dropoffCoords.lat]);
       }
     }
 
@@ -397,16 +471,26 @@
     const apiKey = urlParams.get('apiKey');
     const databaseURL = urlParams.get('databaseURL');
     const orderId = urlParams.get('orderId');
+    const mapboxToken = urlParams.get('mapboxToken');
 
-    if (!apiKey || !databaseURL || !orderId) {
+    if (!apiKey || !databaseURL || !orderId || !mapboxToken) {
       showNotification("Parameter URL tidak lengkap", true);
       throw new Error("Missing required URL parameters");
     }
 
+    // Inisialisasi Mapbox
+    initMapbox();
+
+    // Inisialisasi Firebase
     const firebaseConfig = { apiKey, databaseURL };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const orderRef = db.ref(`pesanan/${orderId}`);
+
+    // Load Turf.js untuk perhitungan geospatial
+    const turfScript = document.createElement('script');
+    turfScript.src = 'https://unpkg.com/@turf/turf@6/turf.min.js';
+    document.head.appendChild(turfScript);
 
     // Load data order
     orderRef.on("value", (snapshot) => {
@@ -423,23 +507,39 @@
       document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
       document.getElementById('price').textContent = formatCurrency(orderData.harga);
 
-      // Set marker lokasi
-      pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
-      dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
+      // Set lokasi pickup dan dropoff
+      pickupCoords = {
+        lat: orderData.from_lat,
+        lng: orderData.from_lng || orderData.from_ing
+      };
+      
+      dropoffCoords = {
+        lat: orderData.to_lat,
+        lng: orderData.to_lng || orderData.to_ing
+      };
 
+      // Tambahkan marker pickup dan dropoff
       if (!pickupMarker) {
-        pickupMarker = L.marker(pickupCoords, {
-          icon: L.divIcon({ className: 'pickup-marker', html: '🟢', iconSize: [25, 25] })
-        }).addTo(map).bindPopup("Lokasi Penjemputan");
+        pickupMarker = new mapboxgl.Marker({ color: '#4CAF50' })
+          .setLngLat([pickupCoords.lng, pickupCoords.lat])
+          .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
+          .addTo(map);
       }
 
       if (!dropoffMarker) {
-        dropoffMarker = L.marker(dropoffCoords, {
-          icon: L.divIcon({ className: 'dropoff-marker', html: '🔴', iconSize: [25, 25] })
-        }).addTo(map).bindPopup("Lokasi Tujuan");
+        dropoffMarker = new mapboxgl.Marker({ color: '#FF5252' })
+          .setLngLat([dropoffCoords.lng, dropoffCoords.lat])
+          .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
+          .addTo(map);
       }
 
-      map.fitBounds([pickupCoords, dropoffCoords]);
+      // Fit bounds ke pickup dan dropoff
+      const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend([pickupCoords.lng, pickupCoords.lat]);
+      bounds.extend([dropoffCoords.lng, dropoffCoords.lat]);
+      map.fitBounds(bounds, { padding: 50 });
+
+      // Mulai tracking posisi driver
       startTracking();
     });
 
