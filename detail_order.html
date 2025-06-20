@@ -9,14 +9,16 @@
     body {
       font-family: Arial, sans-serif;
       margin: 0;
+      padding: 0;
     }
     .top-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 15px;
-      background: #f1f1f1;
+      background: #f8f9fa;
       font-weight: bold;
+      border-bottom: 1px solid #e0e0e0;
     }
     .countdown {
       position: absolute;
@@ -26,52 +28,77 @@
       font-size: 14px;
       font-weight: bold;
       background: rgba(255,255,255,0.9);
-      padding: 5px;
+      padding: 8px 0;
       z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     #map {
       height: 300px;
+      width: 100%;
     }
     .floating-nav {
       position: absolute;
-      top: 100px;
+      top: 110px;
       right: 10px;
       z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
     .floating-nav button {
       padding: 8px 12px;
-      margin: 3px 0;
-      background: #007bff;
+      background: #4285F4;
       color: white;
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     .order-detail {
       padding: 15px;
+      background: white;
     }
     .address {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin: 10px 0;
+      align-items: flex-start;
+      margin: 15px 0;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #f0f0f0;
     }
     .address p {
       margin: 0;
-      width: 80%;
+      width: 85%;
+      line-height: 1.4;
     }
     .price {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       text-align: center;
       margin-top: 20px;
+      color: #333;
+    }
+    .chat-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #4285F4;
+    }
+    .cancel-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #FF5252;
     }
   </style>
 </head>
 <body>
   <div class="top-bar">
-    <div id="passenger-name">Penumpang...</div>
-    <button onclick="cancelOrder()">❌ Batalkan</button>
+    <div id="passenger-name">Memuat data...</div>
+    <button class="cancel-btn" onclick="cancelOrder()">✖ Batalkan</button>
   </div>
 
   <div class="countdown" id="countdown-info">Menghitung jarak...</div>
@@ -79,17 +106,17 @@
   <div id="map"></div>
 
   <div class="floating-nav">
-    <button onclick="openNav('pickup')">🧭 Jemput</button>
-    <button onclick="openNav('dropoff')">🧭 Antar</button>
+    <button onclick="openNavigation('pickup')">🧭 Ke Lokasi Jemput</button>
+    <button onclick="openNavigation('dropoff')">🧭 Ke Lokasi Tujuan</button>
   </div>
 
   <div class="order-detail">
     <div class="address">
-      <p id="pickup-address">Alamat jemput...</p>
-      <button onclick="chatUser()">💬</button>
+      <p id="pickup-address">Memuat alamat penjemputan...</p>
+      <button class="chat-btn" onclick="chatUser()">💬</button>
     </div>
     <div class="address">
-      <p id="dropoff-address">Alamat tujuan...</p>
+      <p id="dropoff-address">Memuat alamat tujuan...</p>
     </div>
     <div class="price" id="price">Rp -</div>
   </div>
@@ -100,92 +127,154 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    function getParam(name) {
-      const url = new URL(window.location.href);
-      return url.searchParams.get(name);
+    // Fungsi untuk mengambil parameter URL
+    function getUrlParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
     }
 
-    const firebaseURL = getParam('url');
-    const orderKey = getParam('order');
-
+    // Konfigurasi Firebase dari URL
     const firebaseConfig = {
-      apiKey: "dummy",
-      databaseURL: firebaseURL
+      apiKey: getUrlParam('apiKey') || "AIzaSyAFWLUF2aH-lD6UTofpRsy1rXbBrLHTagI",
+      databaseURL: getUrlParam('databaseURL') || "https://chatting-87e87-default-rtdb.firebaseio.com"
     };
+
+    // Inisialisasi Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let map = L.map('map').setView([-1.2691, 116.8253], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    // Ambil order ID dari URL
+    const orderId = getUrlParam('orderId') || "NkUvJ52CxdhKQ6jswsJqsJfBp572";
+
+    // Inisialisasi peta
+    const map = L.map('map').setView([1.45907, 124.80219], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // Variabel untuk marker
     let driverMarker;
+    let pickupMarker;
+    let dropoffMarker;
 
-    const orderRef = db.ref("pesanan/" + orderKey);
-    orderRef.once("value").then(snapshot => {
-      const data = snapshot.val();
-      if (!data) return;
+    // Load data order dari Firebase
+    const orderRef = db.ref("pesanan/" + orderId);
+    orderRef.on("value", (snapshot) => {
+      const orderData = snapshot.val();
+      if (!orderData) return;
 
-      document.getElementById('passenger-name').textContent = data.name || "-";
-      document.getElementById('pickup-address').textContent = data.alamat_a || "-";
-      document.getElementById('dropoff-address').textContent = data.alamat_b || "-";
-      document.getElementById('price').textContent = data.harga || "Rp -";
+      // Update informasi order
+      document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
+      document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat penjemputan tidak tersedia";
+      document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tujuan tidak tersedia";
+      document.getElementById('price').textContent = orderData.harga ? `Rp${orderData.harga}` : "Harga tidak tersedia";
 
-      const latlngPickup = L.latLng(data.from_lat, data.from_lng);
-      const latlngDropoff = L.latLng(data.to_lat, data.to_lng);
+      // Koordinat lokasi
+      const pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
+      const dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
 
-      L.marker(latlngPickup).addTo(map).bindPopup("📍 Jemput");
-      L.marker(latlngDropoff).addTo(map).bindPopup("📍 Tujuan");
-      map.fitBounds([latlngPickup, latlngDropoff]);
+      // Update atau buat marker lokasi
+      if (!pickupMarker) {
+        pickupMarker = L.marker(pickupCoords, {
+          icon: L.divIcon({
+            className: 'pickup-marker',
+            html: '🟢',
+            iconSize: [25, 25]
+          })
+        }).addTo(map).bindPopup("Lokasi Penjemputan");
+      } else {
+        pickupMarker.setLatLng(pickupCoords);
+      }
 
-      const vehicle = data.vehicle || 'motor';
-      const iconURL = {
-        motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-        mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
-        kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png'
-      }[vehicle];
+      if (!dropoffMarker) {
+        dropoffMarker = L.marker(dropoffCoords, {
+          icon: L.divIcon({
+            className: 'dropoff-marker',
+            html: '🔴',
+            iconSize: [25, 25]
+          })
+        }).addTo(map).bindPopup("Lokasi Tujuan");
+      } else {
+        dropoffMarker.setLatLng(dropoffCoords);
+      }
 
-      const driverID = data.driverID;
-      db.ref("drivers/" + driverID + "/location").on("value", locSnap => {
-        const loc = locSnap.val();
-        if (!loc) return;
-
-        const driverPos = L.latLng(loc.lat, loc.lng);
-        if (!driverMarker) {
-          driverMarker = L.marker(driverPos, {
-            icon: L.icon({
-              iconUrl: iconURL,
-              iconSize: [40, 40],
-              iconAnchor: [20, 40],
-              popupAnchor: [0, -40]
-            })
-          }).addTo(map);
-        } else {
-          driverMarker.setLatLng(driverPos);
-        }
-
-        const jarak = map.distance(driverPos, latlngPickup) / 1000;
-        const waktu = Math.round(jarak / 0.4 * 60);
-        document.getElementById('countdown-info').textContent =
-          `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
-      });
+      // Fit bounds untuk menampilkan semua marker
+      map.fitBounds([pickupCoords, dropoffMarker.getLatLng()]);
     });
 
-    function openNav(type) {
+    // Track pergerakan driver
+    const trackDriver = () => {
+      const driverId = "DM2842MD"; // Ganti dengan cara mendapatkan driverId yang benar
+      const driverRef = db.ref("drivers/" + driverId + "/location");
+      
+      driverRef.on("value", (snapshot) => {
+        const location = snapshot.val();
+        if (!location) return;
+
+        const driverCoords = L.latLng(location.lat, location.lng);
+        
+        // Update atau buat marker driver
+        if (!driverMarker) {
+          driverMarker = L.marker(driverCoords, {
+            icon: L.icon({
+              iconUrl: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+              iconSize: [40, 40],
+              iconAnchor: [20, 40]
+            })
+          }).addTo(map).bindPopup("Posisi Driver");
+        } else {
+          driverMarker.setLatLng(driverCoords);
+        }
+
+        // Hitung jarak ke lokasi penjemputan
+        if (pickupMarker) {
+          const distance = map.distance(driverCoords, pickupMarker.getLatLng()) / 1000;
+          const duration = Math.round(distance / 0.4 * 60); // Asumsi kecepatan 40km/jam
+          document.getElementById('countdown-info').textContent = 
+            `Jarak ke penjemputan: ${distance.toFixed(2)} km - Estimasi: ${duration} menit`;
+        }
+      });
+    };
+
+    // Panggil fungsi tracking driver
+    trackDriver();
+
+    // Fungsi untuk membuka navigasi
+    function openNavigation(type) {
       orderRef.once("value").then(snapshot => {
         const data = snapshot.val();
-        let targetLat = type === "pickup" ? data.from_lat : data.to_lat;
-        let targetLng = type === "pickup" ? data.from_lng : data.to_lng;
+        if (!data) return;
+
+        let targetLat, targetLng;
+        if (type === "pickup") {
+          targetLat = data.from_lat;
+          targetLng = data.from_lng || data.from_ing;
+        } else {
+          targetLat = data.to_lat;
+          targetLng = data.to_lng || data.to_ing;
+        }
+
         window.open(`https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`, '_blank');
       });
     }
 
+    // Fungsi untuk chat pelanggan
     function chatUser() {
-      alert("Membuka fitur chat penumpang...");
+      orderRef.once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (!data) return;
+        
+        const phone = data.PhoneNumber || '082311640444';
+        window.open(`https://wa.me/${phone}`, '_blank');
+      });
     }
 
+    // Fungsi untuk membatalkan order
     function cancelOrder() {
-      if (confirm("Yakin ingin membatalkan order?")) {
-        orderRef.remove();
-        alert("Order dibatalkan.");
+      if (confirm("Apakah Anda yakin ingin membatalkan order ini?")) {
+        orderRef.update({ status: "dibatalkan" })
+          .then(() => alert("Order telah dibatalkan"))
+          .catch(error => alert("Gagal membatalkan order: " + error.message));
       }
     }
   </script>
