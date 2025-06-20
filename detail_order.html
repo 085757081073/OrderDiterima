@@ -27,7 +27,7 @@
       text-align: center;
       font-size: 14px;
       font-weight: bold;
-      background: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.7);
       padding: 8px 0;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -93,6 +93,25 @@
       cursor: pointer;
       color: #FF5252;
     }
+    .arrival-btn {
+      display: block;
+      width: calc(100% - 30px);
+      margin: 20px auto;
+      padding: 14px;
+      background: #f0f0f0;
+      color: #888;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: not-allowed;
+      text-align: center;
+    }
+    .arrival-btn.active {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -119,6 +138,7 @@
       <p id="dropoff-address">Memuat alamat tujuan...</p>
     </div>
     <div class="price" id="price">Rp -</div>
+    <button class="arrival-btn" id="arrivalBtn">Saya sudah tiba</button>
   </div>
 
   <!-- Leaflet & Firebase -->
@@ -127,24 +147,22 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // Fungsi untuk mengambil parameter URL
-    function getUrlParam(name) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(name);
-    }
+    // Inisialisasi variabel
+    let driverMarker;
+    let pickupMarker;
+    let dropoffMarker;
+    let arrivalBtn = document.getElementById('arrivalBtn');
+    let isNearPickup = false;
+    let isPickupCompleted = false;
+    let pelangganPhone = ''; // Variabel untuk menyimpan nomor telepon pelanggan
 
-    // Konfigurasi Firebase dari URL
+    // Konfigurasi Firebase
     const firebaseConfig = {
-      apiKey: getUrlParam('apiKey') || "AIzaSyAFWLUF2aH-lD6UTofpRsy1rXbBrLHTagI",
-      databaseURL: getUrlParam('databaseURL') || "https://chatting-87e87-default-rtdb.firebaseio.com"
+      apiKey: "AIzaSyAFWLUF2aH-lD6UTofpRsy1rXbBrLHTagI",
+      databaseURL: "https://chatting-87e87-default-rtdb.firebaseio.com"
     };
-
-    // Inisialisasi Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
-    // Ambil order ID dari URL
-    const orderId = getUrlParam('orderId') || "NkUvJ52CxdhKQ6jswsJqsJfBp572";
 
     // Inisialisasi peta
     const map = L.map('map').setView([1.45907, 124.80219], 13);
@@ -152,16 +170,20 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
-    // Variabel untuk marker
-    let driverMarker;
-    let pickupMarker;
-    let dropoffMarker;
-
     // Load data order dari Firebase
+    const orderId = "NkUvJ52CxdhkQGjswsJqsJfBp572"; // Ganti dengan orderId yang sesuai
     const orderRef = db.ref("pesanan/" + orderId);
+    
     orderRef.on("value", (snapshot) => {
       const orderData = snapshot.val();
-      if (!orderData) return;
+      if (!orderData) {
+        console.error("Data order tidak ditemukan");
+        return;
+      }
+
+      // Simpan nomor telepon pelanggan
+      pelangganPhone = orderData.PhoneNumber || '';
+      console.log("Nomor telepon pelanggan:", pelangganPhone);
 
       // Update informasi order
       document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
@@ -200,44 +222,113 @@
 
       // Fit bounds untuk menampilkan semua marker
       map.fitBounds([pickupCoords, dropoffMarker.getLatLng()]);
+
+      // Simulasi pergerakan driver (HAPUS DI PRODUCTION)
+      simulateDriverMovement(pickupCoords);
     });
 
-    // Track pergerakan driver
-    const trackDriver = () => {
-      const driverId = "DM2842MD"; // Ganti dengan cara mendapatkan driverId yang benar
-      const driverRef = db.ref("drivers/" + driverId + "/location");
+    // Fungsi untuk mensimulasikan pergerakan driver (Hanya untuk demo)
+    function simulateDriverMovement(pickupCoords) {
+      let demoLat = pickupCoords.lat - 0.01;
+      let demoLng = pickupCoords.lng - 0.01;
       
-      driverRef.on("value", (snapshot) => {
-        const location = snapshot.val();
-        if (!location) return;
-
-        const driverCoords = L.latLng(location.lat, location.lng);
+      updateDriverPosition(demoLat, demoLng, pickupCoords);
+      
+      const demoInterval = setInterval(() => {
+        demoLat += 0.0005;
+        demoLng += 0.0005;
+        updateDriverPosition(demoLat, demoLng, pickupCoords);
         
-        // Update atau buat marker driver
-        if (!driverMarker) {
-          driverMarker = L.marker(driverCoords, {
-            icon: L.icon({
-              iconUrl: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-              iconSize: [40, 40],
-              iconAnchor: [20, 40]
-            })
-          }).addTo(map).bindPopup("Posisi Driver");
-        } else {
-          driverMarker.setLatLng(driverCoords);
+        // Hentikan simulasi jika sudah dekat
+        if (map.distance(L.latLng(demoLat, demoLng), pickupCoords) < 200) {
+          clearInterval(demoInterval);
         }
+      }, 1000);
+    }
 
-        // Hitung jarak ke lokasi penjemputan
-        if (pickupMarker) {
-          const distance = map.distance(driverCoords, pickupMarker.getLatLng()) / 1000;
-          const duration = Math.round(distance / 0.4 * 60); // Asumsi kecepatan 40km/jam
-          document.getElementById('countdown-info').textContent = 
-            `Jarak ke penjemputan: ${distance.toFixed(2)} km - Estimasi: ${duration} menit`;
-        }
-      });
-    };
+    // Fungsi untuk update posisi driver
+    function updateDriverPosition(lat, lng, pickupCoords) {
+      const driverCoords = L.latLng(lat, lng);
+      
+      if (!driverMarker) {
+        driverMarker = L.marker(driverCoords, {
+          icon: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
+          })
+        }).addTo(map).bindPopup("Posisi Driver");
+      } else {
+        driverMarker.setLatLng(driverCoords);
+      }
 
-    // Panggil fungsi tracking driver
-    trackDriver();
+      // Hitung jarak ke lokasi penjemputan
+      const distance = map.distance(driverCoords, pickupCoords);
+      
+      // Update info jarak
+      document.getElementById('countdown-info').textContent = 
+        `Jarak ke penjemputan: ${(distance/1000).toFixed(2)} km - Estimasi: ${Math.round(distance/1000/0.4*60)} menit`;
+      
+      // Cek jika sudah dekat (<200m)
+      if (distance < 200 && !isPickupCompleted) {
+        isNearPickup = true;
+        arrivalBtn.textContent = "Selesaikan Penjemputan";
+        arrivalBtn.classList.add('active');
+        arrivalBtn.disabled = false;
+      } else if (distance >= 200) {
+        isNearPickup = false;
+        arrivalBtn.textContent = "Saya sudah tiba";
+        arrivalBtn.classList.remove('active');
+        arrivalBtn.disabled = true;
+      }
+    }
+
+    // Fungsi untuk chat pelanggan yang dinamis
+    function chatUser() {
+      if (!pelangganPhone) {
+        alert("Nomor telepon pelanggan tidak tersedia");
+        return;
+      }
+      
+      // Format nomor untuk WhatsApp:
+      const formattedPhone = formatPhoneNumber(pelangganPhone);
+      window.open(`https://wa.me/${formattedPhone}`, '_blank');
+    }
+
+    // Fungsi untuk memformat nomor telepon
+    function formatPhoneNumber(phone) {
+      // Hilangkan semua karakter non-digit
+      let cleaned = phone.replace(/\D/g, '');
+      
+      // Jika diawali dengan 0, ganti dengan 62
+      if (cleaned.startsWith('0')) {
+        cleaned = '62' + cleaned.substring(1);
+      }
+      // Jika diawali dengan 8 (tanpa kode negara), tambahkan 62
+      else if (cleaned.startsWith('8')) {
+        cleaned = '62' + cleaned;
+      }
+      
+      return cleaned;
+    }
+
+    // Tombol arrival/selesaikan
+    arrivalBtn.addEventListener('click', function() {
+      if (isNearPickup && !isPickupCompleted) {
+        // Aksi ketika selesaikan penjemputan
+        alert("Penjemputan telah diselesaikan");
+        isPickupCompleted = true;
+        arrivalBtn.textContent = "Menuju Lokasi Tujuan";
+        arrivalBtn.classList.remove('active');
+        
+        // Webstring action
+        console.log("webstring:complete_pickup");
+      } else if (isPickupCompleted) {
+        // Aksi ketika sampai tujuan
+        alert("Pesanan telah selesai");
+        console.log("webstring:complete_order");
+      }
+    });
 
     // Fungsi untuk membuka navigasi
     function openNavigation(type) {
@@ -258,23 +349,21 @@
       });
     }
 
-    // Fungsi untuk chat pelanggan
-    function chatUser() {
-      orderRef.once("value").then(snapshot => {
-        const data = snapshot.val();
-        if (!data) return;
-        
-        const phone = data.PhoneNumber || '082311640444';
-        window.open(`https://wa.me/${phone}`, '_blank');
-      });
-    }
-
     // Fungsi untuk membatalkan order
     function cancelOrder() {
       if (confirm("Apakah Anda yakin ingin membatalkan order ini?")) {
         orderRef.update({ status: "dibatalkan" })
-          .then(() => alert("Order telah dibatalkan"))
-          .catch(error => alert("Gagal membatalkan order: " + error.message));
+          .then(() => {
+            alert("Order telah dibatalkan");
+            console.log("webstring:cancel_order");
+            // Tutup screen (simulasi)
+            setTimeout(() => {
+              document.body.innerHTML = "<h1 style='text-align:center;margin-top:50px'>Order telah dibatalkan</h1>";
+            }, 1000);
+          })
+          .catch(error => {
+            alert("Gagal membatalkan order: " + error.message);
+          });
       }
     }
   </script>
