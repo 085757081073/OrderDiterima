@@ -2,239 +2,146 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Detail Order Driver</title>
+  <title>Driver Navigation Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Mapbox CSS -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <style>
-    /* [Previous CSS remains exactly the same] */
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      height: 100%;
+    }
+    #map { 
+      position: absolute; 
+      top: 0; 
+      bottom: 0; 
+      width: 100%; 
+    }
+    
+    /* Custom vehicle marker */
+    .vehicle-marker {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234285F4"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5H15V3H9v2H6.5c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>');
+      background-size: cover;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <!-- [Previous HTML structure remains exactly the same] -->
-
+  <div id="map"></div>
   <script>
-    // Global variables
-    let map;
-    let directions;
-    let driverMarker;
-    let orderRef;
-    let isNearPickup = false;
-    let isPickupCompleted = false;
-    let pelangganPhone = '';
-    let pickupCoords, dropoffCoords;
-
-    // Initialize Mapbox
-    function initMapbox() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const mapboxToken = urlParams.get('mapboxToken');
-      
-      if (!mapboxToken) {
-        showNotification("Mapbox token tidak ditemukan", true);
-        return null;
-      }
-      
-      mapboxgl.accessToken = mapboxToken;
-      
-      // Initialize map
-      const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [106.8, -6.2],
-        zoom: 13
-      });
-      
-      map.addControl(new mapboxgl.NavigationControl());
-      
-      directions = new MapboxDirections({
-        accessToken: mapboxgl.accessToken,
-        unit: 'metric',
-        profile: 'mapbox/driving',
-        controls: { inputs: false, instructions: false, profileSwitcher: false },
-        interactive: false
-      });
-      
-      map.addControl(directions, 'top-left');
-      
-      return map;
+    // Get parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Required parameters
+    const mapboxToken = urlParams.get('token');
+    const from = urlParams.get('from'); // format: "lat,lng"
+    const to = urlParams.get('to');     // format: "lat,lng"
+    const vehicle = urlParams.get('vehicle') || from; // default to pickup location
+    
+    // Validate required parameters
+    if (!mapboxToken || !from || !to) {
+      document.body.innerHTML = `
+        <div style="color:red; padding:20px; text-align:center;">
+          <h2>Parameter tidak lengkap</h2>
+          <p>Harap sertakan parameter berikut di URL:</p>
+          <ul style="text-align:left; display:inline-block;">
+            <li>token (Mapbox token)</li>
+            <li>from (lokasi penjemputan, format: lat,lng)</li>
+            <li>to (lokasi tujuan, format: lat,lng)</li>
+          </ul>
+        </div>
+      `;
+      throw new Error('Missing required URL parameters');
     }
 
-    // [Keep showNotification, formatCurrency functions exactly the same]
+    // Convert coordinates to [lng, lat] format
+    const fromCoords = from.split(',').map(Number).reverse();
+    const toCoords = to.split(',').map(Number).reverse();
+    const vehicleCoords = vehicle.split(',').map(Number).reverse();
 
-    // REVISED WEBSTRING FUNCTION - SIMPLIFIED AND MORE RELIABLE
-    function sendWebString(action) {
-      const webString = `webstring:${action}`;
-      
-      // 1. Try Android interface first
-      try {
-        if (window.AndroidInterface && window.AndroidInterface.setWebViewString) {
-          window.AndroidInterface.setWebViewString(webString);
-          return;
-        }
-      } catch (e) { console.log("Android interface not available"); }
-      
-      // 2. Try iOS interface
-      try {
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.observer) {
-          window.webkit.messageHandlers.observer.postMessage(webString);
-          return;
-        }
-      } catch (e) { console.log("iOS interface not available"); }
-      
-      // 3. Fallback to URL scheme (works for both platforms)
-      try {
-        window.location.href = `jsbridge://${webString}`;
-      } catch (e) { console.log("URL scheme not available"); }
-      
-      // 4. Final fallback to console
-      console.log("WEBSTRING:", webString);
-    }
-
-    // REVISED NAVIGATION FUNCTION - ENSURES WEBSTRING IS SENT
-    function navigateTo(type) {
-      if (!pickupCoords || !dropoffCoords) {
-        showNotification("Lokasi belum dimuat", true);
-        return;
-      }
-      
-      const coords = type === 'pickup' ? pickupCoords : dropoffCoords;
-      sendWebString(`navigate_${type}_${coords.lng},${coords.lat}`);
-      
-      // Additional fallback to native maps
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}&travelmode=driving`;
-      window.open(url, '_blank');
-    }
-
-    // REVISED CHAT FUNCTION - WITH PHONE NUMBER VALIDATION
-    function chatUser() {
-      if (!pelangganPhone) {
-        showNotification("Nomor pelanggan tidak tersedia", true);
-        return;
-      }
-      
-      // Clean phone number
-      const cleanPhone = pelangganPhone.replace(/^0/, '62').replace(/\D/g, '');
-      sendWebString(`chat_${cleanPhone}`);
-      
-      // Fallback to WhatsApp Web
-      window.open(`https://wa.me/${cleanPhone}`, '_blank');
-    }
-
-    // REVISED CANCEL ORDER - WITH CONFIRMATION
-    function cancelOrder() {
-      if (!confirm("Apakah Anda yakin ingin membatalkan order ini?")) return;
-      
-      sendWebString("cancel_order");
-      
-      if (orderRef) {
-        orderRef.update({ 
-          status_driver: "dibatalkan",
-          waktu_batal: firebase.database.ServerValue.TIMESTAMP 
-        }).catch(error => {
-          showNotification("Gagal membatalkan order", true);
-        });
-      }
-    }
-
-    // [Keep updateDriverPosition, startTracking functions the same]
-
-    // Initialize the app - WITH ERROR HANDLING
-    document.addEventListener('DOMContentLoaded', function() {
-      try {
-        // Initialize Mapbox
-        map = initMapbox();
-        if (!map) return;
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const apiKey = urlParams.get('apiKey');
-        const databaseURL = urlParams.get('databaseURL');
-        const orderId = urlParams.get('orderId');
-        
-        if (!apiKey || !databaseURL || !orderId) {
-          showNotification("Parameter URL tidak lengkap", true);
-          return;
-        }
-        
-        // Initialize Firebase
-        firebase.initializeApp({ apiKey, databaseURL });
-        orderRef = firebase.database().ref(`pesanan/${orderId}`);
-        
-        // Load order data
-        orderRef.on("value", (snapshot) => {
-          try {
-            const orderData = snapshot.val();
-            if (!orderData) {
-              showNotification("Data order tidak ditemukan", true);
-              return;
-            }
-            
-            // Update UI
-            document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
-            document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat tidak tersedia";
-            document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
-            document.getElementById('price').textContent = formatCurrency(orderData.harga);
-            pelangganPhone = orderData.PhoneNumber || '';
-            
-            // Set coordinates
-            if (orderData.from_lat && orderData.from_lng) {
-              pickupCoords = { lat: orderData.from_lat, lng: orderData.from_lng };
-              new mapboxgl.Marker({ color: '#4CAF50' })
-                .setLngLat([pickupCoords.lng, pickupCoords.lat])
-                .addTo(map);
-            }
-            
-            if (orderData.to_lat && orderData.to_lng) {
-              dropoffCoords = { lat: orderData.to_lat, lng: orderData.to_lng };
-              new mapboxgl.Marker({ color: '#FF5252' })
-                .setLngLat([dropoffCoords.lng, dropoffCoords.lat])
-                .addTo(map);
-            }
-            
-            if (pickupCoords && dropoffCoords) {
-              const bounds = new mapboxgl.LngLatBounds();
-              bounds.extend([pickupCoords.lng, pickupCoords.lat]);
-              bounds.extend([dropoffCoords.lng, dropoffCoords.lat]);
-              map.fitBounds(bounds, { padding: 50 });
-            }
-            
-            startTracking();
-          } catch (e) {
-            console.error("Error loading order data:", e);
-            showNotification("Gagal memuat data order", true);
-          }
-        });
-        
-        // Arrival button handler - WITH WEBSTRING
-        document.getElementById('arrivalBtn').addEventListener('click', function() {
-          if (!isPickupCompleted && isNearPickup) {
-            sendWebString("pickup_completed");
-            orderRef.update({ 
-              status_driver: "tiba_di_jemput",
-              waktu_tiba: firebase.database.ServerValue.TIMESTAMP 
-            }).catch(error => {
-              showNotification("Gagal update status", true);
-            });
-          } else if (isPickupCompleted) {
-            sendWebString("trip_started");
-            orderRef.update({ 
-              status_driver: "dalam_pengantaran",
-              waktu_berangkat: firebase.database.ServerValue.TIMESTAMP 
-            }).catch(error => {
-              showNotification("Gagal update status", true);
-            });
-          }
-        });
-        
-      } catch (e) {
-        console.error("Initialization error:", e);
-        showNotification("Gagal memulai aplikasi", true);
-      }
+    // Initialize map
+    mapboxgl.accessToken = mapboxToken;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: vehicleCoords,
+      zoom: 13
     });
 
-    // Load Turf.js dynamically
-    const turfScript = document.createElement('script');
-    turfScript.src = 'https://unpkg.com/@turf/turf@6/turf.min.js';
-    document.head.appendChild(turfScript);
+    // Add markers and route when map loads
+    map.on('load', async () => {
+      try {
+        // Add markers
+        new mapboxgl.Marker({ color: '#4CAF50' })
+          .setLngLat(fromCoords)
+          .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
+          .addTo(map);
+        
+        new mapboxgl.Marker({ color: '#FF5252' })
+          .setLngLat(toCoords)
+          .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
+          .addTo(map);
+        
+        // Add custom vehicle marker
+        const vehicleEl = document.createElement('div');
+        vehicleEl.className = 'vehicle-marker';
+        new mapboxgl.Marker(vehicleEl)
+          .setLngLat(vehicleCoords)
+          .setPopup(new mapboxgl.Popup().setHTML("<b>Posisi Anda</b>"))
+          .addTo(map);
+
+        // Get route from Mapbox Directions API
+        const query = await fetch(
+          `https://api.mapbox.com/directions/v5/mapbox/driving/` +
+          `${fromCoords.join(',')};${toCoords.join(',')}` +
+          `?geometries=geojson&access_token=${mapboxgl.accessToken}`
+        );
+        
+        if (!query.ok) throw new Error('Gagal mendapatkan rute');
+        
+        const json = await query.json();
+        const route = json.routes[0].geometry;
+
+        // Add route to the map
+        map.addSource('route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: route
+          }
+        });
+
+        map.addLayer({
+          id: 'route',
+          type: 'line',
+          source: 'route',
+          layout: { 
+            'line-cap': 'round', 
+            'line-join': 'round' 
+          },
+          paint: {
+            'line-color': '#00BFFF',
+            'line-width': 3, // Lebih tipis dari sebelumnya
+            'line-opacity': 0.8
+          }
+        });
+
+        // Fit bounds to show entire route
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend(fromCoords);
+        bounds.extend(toCoords);
+        bounds.extend(vehicleCoords);
+        map.fitBounds(bounds, { padding: 50 });
+
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat memuat peta: ' + error.message);
+      }
+    });
   </script>
 </body>
 </html>
