@@ -21,32 +21,29 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px;
+      padding: 12px 15px;
       background: #ffffff;
       font-weight: bold;
       border-bottom: 1px solid #e0e0e0;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       flex-shrink: 0;
     }
     
     .countdown {
-      position: absolute;
-      top: 70px;
       width: 100%;
       text-align: center;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
-      background: rgba(255,255,255,0.9);
-      padding: 10px 0;
+      background: rgba(255,255,255,0.95);
+      padding: 8px 0;
       z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     #map-container {
       position: relative;
-      height: 70vh;
+      flex-grow: 1;
       width: 100%;
-      flex-shrink: 0;
     }
     
     #map {
@@ -57,85 +54,87 @@
     
     .map-nav-buttons {
       position: absolute;
-      bottom: 20px;
-      right: 15px;
+      bottom: 15px;
+      right: 10px;
       z-index: 1001;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     
     .map-nav-buttons button {
-      padding: 12px 15px;
+      padding: 10px 12px;
       background: #4285F4;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      font-size: 13px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       display: flex;
       align-items: center;
       gap: 5px;
-      min-width: 120px;
+      min-width: 110px;
     }
     
     .order-detail {
-      padding: 15px 20px;
+      padding: 12px 15px;
       background: white;
-      flex-grow: 1;
+      border-top: 1px solid #e0e0e0;
+      flex-shrink: 0;
+      max-height: 45vh;
       overflow-y: auto;
-      max-height: 30vh;
     }
     
     .address-card {
       background: #f9f9f9;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-      border-left: 4px solid #4285F4;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-left: 3px solid #4285F4;
     }
     
     .address-card h3 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
+      margin: 0 0 6px 0;
+      font-size: 13px;
       color: #555;
     }
     
     .address-card p {
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.4;
       color: #333;
     }
     
     .price-display {
       text-align: center;
-      margin: 15px 0;
-      padding: 12px;
+      margin: 12px 0;
+      padding: 10px;
       background: #f0f8ff;
-      border-radius: 8px;
+      border-radius: 6px;
       font-weight: bold;
     }
     
     .price-display .amount {
-      font-size: 20px;
+      font-size: 18px;
       color: #2e7d32;
     }
     
     .action-buttons {
       display: flex;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 8px;
+      margin-top: 12px;
     }
     
     .action-buttons button {
       flex: 1;
-      padding: 12px;
+      padding: 10px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
+      font-size: 14px;
     }
     
     .chat-btn {
@@ -168,9 +167,9 @@
       transform: translateX(-50%);
       background: #4CAF50;
       color: white;
-      padding: 12px 25px;
-      border-radius: 8px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      padding: 10px 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       z-index: 2000;
       display: none;
       animation: fadeIn 0.3s;
@@ -179,18 +178,6 @@
     @keyframes fadeIn {
       from { opacity: 0; top: 10px; }
       to { opacity: 1; top: 20px; }
-    }
-    
-    .skeleton-loading {
-      background: #e0e0e0;
-      border-radius: 4px;
-      animation: pulse 1.5s infinite ease-in-out;
-    }
-    
-    @keyframes pulse {
-      0% { opacity: 0.6; }
-      50% { opacity: 0.3; }
-      100% { opacity: 0.6; }
     }
   </style>
 </head>
@@ -205,28 +192,28 @@
   <div id="map-container">
     <div id="map"></div>
     <div class="map-nav-buttons">
-      <button onclick="openNativeNavigation('pickup')">
-        <span style="font-size:18px">🧭</span> Navigasi Jemput
+      <button onclick="navigateTo('pickup')">
+        <span style="font-size:16px">🧭</span> Ke Penjemputan
       </button>
-      <button onclick="openNativeNavigation('dropoff')">
-        <span style="font-size:18px">📍</span> Navigasi Antar
+      <button onclick="navigateTo('dropoff')">
+        <span style="font-size:16px">📍</span> Ke Tujuan
       </button>
     </div>
   </div>
 
   <div class="order-detail">
     <div class="address-card">
-      <h3>Lokasi Penjemputan</h3>
+      <h3>LOKASI PENJEMPUTAN</h3>
       <p id="pickup-address">Memuat alamat penjemputan...</p>
     </div>
     
     <div class="address-card">
-      <h3>Lokasi Tujuan</h3>
+      <h3>LOKASI TUJUAN</h3>
       <p id="dropoff-address">Memuat alamat tujuan...</p>
     </div>
     
     <div class="price-display">
-      <div>Total Biaya</div>
+      <div>TOTAL BIAYA</div>
       <div id="price" class="amount">Rp -</div>
     </div>
     
@@ -247,10 +234,18 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- Turf.js for geospatial calculations -->
-  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
   <script>
+    // Global variables
+    let map;
+    let directions;
+    let driverMarker;
+    let orderRef;
+    let isNearPickup = false;
+    let isPickupCompleted = false;
+    let pelangganPhone = '';
+    let pickupCoords, dropoffCoords;
+
     // Initialize Mapbox
     function initMapbox() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -258,7 +253,7 @@
       
       if (!mapboxToken) {
         showNotification("Mapbox token tidak ditemukan", true);
-        return;
+        return null;
       }
       
       mapboxgl.accessToken = mapboxToken;
@@ -266,22 +261,184 @@
       // Initialize map
       const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: 'mapbox://styles/mapbox/streets-v11',
         center: [106.8, -6.2], // Default Jakarta
         zoom: 13
       });
       
-      // Add zoom and rotation controls to the map.
+      // Add zoom controls
       map.addControl(new mapboxgl.NavigationControl());
+      
+      // Initialize directions
+      directions = new MapboxDirections({
+        accessToken: mapboxgl.accessToken,
+        unit: 'metric',
+        profile: 'mapbox/driving',
+        controls: {
+          inputs: false,
+          instructions: false,
+          profileSwitcher: false
+        },
+        interactive: false
+      });
+      
+      map.addControl(directions, 'top-left');
       
       return map;
     }
 
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-      const map = initMapbox();
+    // Show notification
+    function showNotification(message, isError = false) {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.style.background = isError ? '#FF5252' : '#4CAF50';
+      notification.style.display = 'block';
       
-      // URL parameters
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 3000);
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+      if (amount === undefined || amount === null) return "Rp -";
+      const num = parseInt(String(amount).replace(/\D/g, ''));
+      return isNaN(num) ? "Rp -" : "Rp" + num.toLocaleString('id-ID');
+    }
+
+    // Send webstring to native app
+    function sendWebString(action) {
+      const webString = `webstring:${action}`;
+      if (window.AndroidInterface) {
+        window.AndroidInterface.setWebViewString(webString);
+      } else if (window.webkit && window.webkit.messageHandlers) {
+        window.webkit.messageHandlers.observer.postMessage(webString);
+      }
+      console.log(webString);
+    }
+
+    // Navigation handler
+    function navigateTo(type) {
+      if (!pickupCoords || !dropoffCoords) {
+        showNotification("Lokasi belum dimuat", true);
+        return;
+      }
+      
+      const coords = type === 'pickup' ? pickupCoords : dropoffCoords;
+      sendWebString(`navigate_${type}_${coords.lng},${coords.lat}`);
+    }
+
+    // Chat user handler
+    function chatUser() {
+      if (!pelangganPhone) {
+        showNotification("Nomor pelanggan tidak tersedia", true);
+        return;
+      }
+      sendWebString(`chat_${pelangganPhone}`);
+    }
+
+    // Cancel order
+    function cancelOrder() {
+      if (confirm("Apakah Anda yakin ingin membatalkan order ini?")) {
+        sendWebString("cancel_order");
+        if (orderRef) {
+          orderRef.update({ 
+            status_driver: "dibatalkan",
+            waktu_batal: firebase.database.ServerValue.TIMESTAMP 
+          }).then(() => {
+            showNotification("Order telah dibatalkan");
+          }).catch(error => {
+            showNotification("Gagal membatalkan order", true);
+          });
+        }
+      }
+    }
+
+    // Update driver position
+    function updateDriverPosition(lat, lng) {
+      const driverCoords = [lng, lat];
+      
+      // Update or create driver marker
+      if (!driverMarker) {
+        const el = document.createElement('div');
+        el.className = 'driver-marker';
+        el.style.backgroundImage = 'url(https://cdn-icons-png.flaticon.com/128/5811/5811823.png)';
+        el.style.width = '40px';
+        el.style.height = '40px';
+        el.style.backgroundSize = '100%';
+        
+        driverMarker = new mapboxgl.Marker(el)
+          .setLngLat(driverCoords)
+          .addTo(map);
+      } else {
+        driverMarker.setLngLat(driverCoords);
+      }
+      
+      // Calculate distance to pickup
+      if (pickupCoords) {
+        const distance = turf.distance(
+          turf.point(driverCoords),
+          turf.point([pickupCoords.lng, pickupCoords.lat]),
+          { units: 'kilometers' }
+        ) * 1000;
+        
+        const duration = Math.round(distance / 1000 / 0.4 * 60);
+        document.getElementById('countdown-info').textContent = 
+          `Jarak ke penjemputan: ${(distance/1000).toFixed(1)} km - Estimasi: ${duration} menit`;
+        
+        // Update arrival button state
+        if (distance < 200 && !isPickupCompleted) {
+          isNearPickup = true;
+          document.getElementById('arrivalBtn').textContent = "Selesaikan Penjemputan";
+          document.getElementById('arrivalBtn').classList.add('active');
+          document.getElementById('arrivalBtn').disabled = false;
+        }
+      }
+      
+      // Update route
+      if (pickupCoords && dropoffCoords) {
+        if (!isPickupCompleted) {
+          directions.setOrigin(driverCoords);
+          directions.setDestination([pickupCoords.lng, pickupCoords.lat]);
+        } else {
+          directions.setOrigin(driverCoords);
+          directions.setDestination([dropoffCoords.lng, dropoffCoords.lat]);
+        }
+      }
+      
+      // Update Firebase
+      if (orderRef) {
+        orderRef.update({
+          lat_driver: lat,
+          lng_driver: lng,
+          last_update: firebase.database.ServerValue.TIMESTAMP
+        });
+      }
+    }
+
+    // Start tracking position
+    function startTracking() {
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            updateDriverPosition(position.coords.latitude, position.coords.longitude);
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            showNotification("Gagal mendapatkan lokasi", true);
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+        );
+      } else {
+        showNotification("Browser tidak mendukung geolocation", true);
+      }
+    }
+
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', function() {
+      map = initMapbox();
+      if (!map) return;
+      
       const urlParams = new URLSearchParams(window.location.search);
       const apiKey = urlParams.get('apiKey');
       const databaseURL = urlParams.get('databaseURL');
@@ -293,10 +450,8 @@
       }
       
       // Initialize Firebase
-      const firebaseConfig = { apiKey, databaseURL };
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.database();
-      const orderRef = db.ref(`pesanan/${orderId}`);
+      firebase.initializeApp({ apiKey, databaseURL });
+      orderRef = firebase.database().ref(`pesanan/${orderId}`);
       
       // Load order data
       orderRef.on("value", (snapshot) => {
@@ -311,38 +466,77 @@
         document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat tidak tersedia";
         document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
         document.getElementById('price').textContent = formatCurrency(orderData.harga);
+        pelangganPhone = orderData.PhoneNumber || '';
         
-        // Set map markers and route
+        // Set coordinates
         if (orderData.from_lat && orderData.from_lng) {
-          const pickupCoords = [orderData.from_lng, orderData.from_lat];
+          pickupCoords = {
+            lat: orderData.from_lat,
+            lng: orderData.from_lng
+          };
+          
           new mapboxgl.Marker({ color: '#4CAF50' })
-            .setLngLat(pickupCoords)
+            .setLngLat([pickupCoords.lng, pickupCoords.lat])
             .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
             .addTo(map);
-            
-          if (orderData.to_lat && orderData.to_lng) {
-            const dropoffCoords = [orderData.to_lng, orderData.to_lat];
-            new mapboxgl.Marker({ color: '#FF5252' })
-              .setLngLat(dropoffCoords)
-              .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
-              .addTo(map);
-              
-            // Fit bounds to include both points
-            const bounds = new mapboxgl.LngLatBounds();
-            bounds.extend(pickupCoords);
-            bounds.extend(dropoffCoords);
-            map.fitBounds(bounds, { padding: 50 });
-          }
         }
         
-        // Start tracking driver position
-        startTracking(map, orderRef, orderData);
+        if (orderData.to_lat && orderData.to_lng) {
+          dropoffCoords = {
+            lat: orderData.to_lat,
+            lng: orderData.to_lng
+          };
+          
+          new mapboxgl.Marker({ color: '#FF5252' })
+            .setLngLat([dropoffCoords.lng, dropoffCoords.lat])
+            .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
+            .addTo(map);
+        }
+        
+        // Fit bounds if both points exist
+        if (pickupCoords && dropoffCoords) {
+          const bounds = new mapboxgl.LngLatBounds();
+          bounds.extend([pickupCoords.lng, pickupCoords.lat]);
+          bounds.extend([dropoffCoords.lng, dropoffCoords.lat]);
+          map.fitBounds(bounds, { padding: 50 });
+        }
+        
+        // Start tracking
+        startTracking();
+      });
+      
+      // Arrival button handler
+      document.getElementById('arrivalBtn').addEventListener('click', function() {
+        if (!isPickupCompleted && isNearPickup) {
+          // Complete pickup
+          orderRef.update({ 
+            status_driver: "tiba_di_jemput",
+            waktu_tiba: firebase.database.ServerValue.TIMESTAMP 
+          }).then(() => {
+            showNotification("Penjemputan diselesaikan");
+            this.textContent = "Mulai Mengantar";
+            isPickupCompleted = true;
+            sendWebString("pickup_completed");
+          });
+        } else if (isPickupCompleted) {
+          // Start trip
+          orderRef.update({ 
+            status_driver: "dalam_pengantaran",
+            waktu_berangkat: firebase.database.ServerValue.TIMESTAMP 
+          }).then(() => {
+            showNotification("Pesanan sedang diantar");
+            this.textContent = "Sedang Mengantar...";
+            this.disabled = true;
+            sendWebString("trip_started");
+          });
+        }
       });
     });
 
-    // Rest of your JavaScript functions (showNotification, formatCurrency, etc.)
-    // ... (keep all your existing functions from previous code)
-    
+    // Load Turf.js dynamically
+    const turfScript = document.createElement('script');
+    turfScript.src = 'https://unpkg.com/@turf/turf@6/turf.min.js';
+    document.head.appendChild(turfScript);
   </script>
 </body>
 </html>
