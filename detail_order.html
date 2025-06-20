@@ -26,9 +26,7 @@
       border-radius: 5px; cursor: pointer; font-size: 14px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    .order-detail {
-      padding: 15px; background: white;
-    }
+    .order-detail { padding: 15px; background: white; }
     .address {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin: 15px 0; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0;
@@ -103,7 +101,7 @@
 
     const map = L.map('map').setView([1.45907, 124.80219], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap'
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
     const orderId = "NkUvJ52CxdhkQGjswsJqsJfBp572";
@@ -177,10 +175,10 @@
 
       if (distance < 200 && !isPickupCompleted) {
         isNearPickup = true;
-        arrivalBtn.textContent = "Selesaikan Penjemputan";
+        arrivalBtn.textContent = "Tiba di lokasi jemput";
         arrivalBtn.classList.add('active');
         arrivalBtn.disabled = false;
-      } else {
+      } else if (!isPickupCompleted) {
         isNearPickup = false;
         arrivalBtn.textContent = "Saya sudah tiba";
         arrivalBtn.classList.remove('active');
@@ -190,31 +188,46 @@
 
     arrivalBtn.addEventListener('click', function() {
       if (isNearPickup && !isPickupCompleted) {
-        isPickupCompleted = true;
-        arrivalBtn.textContent = "Menuju Lokasi Tujuan";
-        arrivalBtn.classList.remove('active');
-        if (window.AndroidInterface) {
-          window.AndroidInterface.setWebViewString("webstring:complete_pickup");
-        }
+        orderRef.update({ status_driver: "tiba_di_jemput" }).then(() => {
+          arrivalBtn.textContent = "Go";
+          arrivalBtn.classList.add('active');
+          arrivalBtn.disabled = false;
+          isPickupCompleted = true;
+
+          if (window.AndroidInterface) {
+            window.AndroidInterface.setWebViewString("webstring:tiba_di_jemput");
+          }
+        });
       } else if (isPickupCompleted) {
-        if (window.AndroidInterface) {
-          window.AndroidInterface.setWebViewString("webstring:complete_order");
-        }
+        orderRef.update({ status_driver: "berangkat" }).then(() => {
+          arrivalBtn.textContent = "Mengantar...";
+          arrivalBtn.classList.remove('active');
+          arrivalBtn.disabled = true;
+
+          if (window.AndroidInterface) {
+            window.AndroidInterface.setWebViewString("webstring:berangkat");
+          }
+        });
       }
     });
 
     function cancelOrder() {
-      orderRef.update({ status: "dibatalkan" }).then(() => {
+      orderRef.update({ status_driver: "dibatalkan" }).then(() => {
         if (window.AndroidInterface) {
           window.AndroidInterface.setWebViewString("webstring:cancel_order");
         }
-        document.body.innerHTML = "<h1 style='text-align:center;margin-top:50px'>Order telah dibatalkan</h1>";
+        document.body.innerHTML = "<h1 style='text-align:center;margin-top:50px'>Order dibatalkan</h1>";
       });
     }
 
     function chatUser() {
       if (!pelangganPhone) return;
-      const phone = pelangganPhone.replace(/\D/g, '').replace(/^0/, '62');
+      let phone = pelangganPhone.replace(/\D/g, '');
+      if (phone.startsWith('0')) {
+        phone = '62' + phone.slice(1);
+      } else if (phone.startsWith('8')) {
+        phone = '62' + phone;
+      }
       window.open(`https://wa.me/${phone}`, '_blank');
     }
 
