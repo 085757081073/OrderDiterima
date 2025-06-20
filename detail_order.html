@@ -8,7 +8,7 @@
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Arial', sans-serif;
       margin: 0;
       padding: 0;
       background-color: #f5f5f5;
@@ -16,6 +16,7 @@
       display: flex;
       flex-direction: column;
     }
+    
     .top-bar {
       display: flex;
       justify-content: space-between;
@@ -27,6 +28,7 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       flex-shrink: 0;
     }
+    
     .countdown {
       position: absolute;
       top: 70px;
@@ -39,23 +41,32 @@
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    #map {
-      height: 70vh; /* 70% tinggi viewport */
+    
+    #map-container {
+      position: relative;
+      height: 70vh;
       width: 100%;
-      background: #e9e9e9;
       flex-shrink: 0;
     }
-    .floating-nav {
+    
+    #map {
+      height: 100%;
+      width: 100%;
+      background: #e9e9e9;
+    }
+    
+    .map-nav-buttons {
       position: absolute;
-      top: calc(70px + 10px);
+      bottom: 20px;
       right: 15px;
       z-index: 1001;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
-    .floating-nav button {
-      padding: 10px 15px;
+    
+    .map-nav-buttons button {
+      padding: 12px 15px;
       background: #4285F4;
       color: white;
       border: none;
@@ -66,69 +77,90 @@
       display: flex;
       align-items: center;
       gap: 5px;
+      min-width: 120px;
     }
+    
     .order-detail {
-      padding: 15px 20px; /* Padding diperkecil */
+      padding: 15px 20px;
       background: white;
-      margin-top: -5px;
       flex-grow: 1;
       overflow-y: auto;
-      max-height: 30vh; /* Maksimal 30% viewport */
+      max-height: 30vh;
     }
-    .address {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin: 10px 0; /* Margin diperkecil */
-      padding-bottom: 10px; /* Padding diperkecil */
-      border-bottom: 1px solid #f0f0f0;
+    
+    .address-card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-left: 4px solid #4285F4;
     }
-    .address p {
+    
+    .address-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #555;
+    }
+    
+    .address-card p {
       margin: 0;
-      width: 85%;
-      line-height: 1.4; /* Line height diperkecil */
+      font-size: 15px;
+      line-height: 1.4;
       color: #333;
-      font-size: 14px; /* Font size diperkecil */
     }
-    .price {
-      font-size: 16px; /* Diperkecil dari 18px */
-      font-weight: bold;
+    
+    .price-display {
       text-align: center;
-      margin-top: 15px; /* Diperkecil dari 20px */
-      color: #333;
+      margin: 15px 0;
+      padding: 12px;
+      background: #f0f8ff;
+      border-radius: 8px;
+      font-weight: bold;
     }
+    
+    .price-display .amount {
+      font-size: 20px;
+      color: #2e7d32;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .action-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
     .chat-btn {
-      background: none;
-      border: none;
-      font-size: 20px; /* Diperkecil dari 22px */
-      cursor: pointer;
-      color: #4285F4;
-      padding: 5px;
+      background: #e3f2fd;
+      color: #1976d2;
     }
+    
     .cancel-btn {
-      background: none;
-      border: none;
-      font-size: 18px; /* Diperkecil dari 20px */
-      cursor: pointer;
-      color: #FF5252;
-      padding: 5px;
+      background: #ffebee;
+      color: #d32f2f;
     }
+    
     .arrival-btn {
-      display: block;
-      width: calc(100% - 30px); /* Diperkecil dari 40px */
-      margin: 15px auto; /* Diperkecil dari 25px */
-      padding: 12px; /* Diperkecil dari 15px */
       background: #f0f0f0;
       color: #888;
-      border: none;
-      border-radius: 8px; /* Diperkecil dari 10px */
-      font-size: 15px; /* Diperkecil dari 16px */
-      font-weight: bold;
       cursor: not-allowed;
-      text-align: center;
-      transition: all 0.3s;
+      width: 100%;
     }
-    /* Sisanya tetap sama */
+    
+    .arrival-btn.active {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    
     .notification {
       position: fixed;
       top: 20px;
@@ -143,22 +175,26 @@
       display: none;
       animation: fadeIn 0.3s;
     }
+    
     @keyframes fadeIn {
       from { opacity: 0; top: 10px; }
       to { opacity: 1; top: 20px; }
     }
-    .mapboxgl-ctrl-geocoder {
-      width: 100% !important;
-      max-width: 100% !important;
+    
+    .skeleton-loading {
+      background: #e0e0e0;
+      border-radius: 4px;
+      animation: pulse 1.5s infinite ease-in-out;
     }
-    .mapbox-directions-component {
-      width: 100% !important;
-      max-width: 100% !important;
+    
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 0.3; }
+      100% { opacity: 0.6; }
     }
   </style>
 </head>
 <body>
-  <!-- Konten HTML tetap sama -->
   <div class="top-bar">
     <div id="passenger-name">Memuat data...</div>
     <button class="cancel-btn" onclick="cancelOrder()">✖ Batalkan</button>
@@ -166,44 +202,147 @@
 
   <div class="countdown" id="countdown-info">Menghitung jarak...</div>
 
-  <div id="map"></div>
-
-  <div class="floating-nav">
-    <button onclick="openNativeNavigation('pickup')">
-      <span style="font-size:18px">🧭</span> Jemput
-    </button>
-    <button onclick="openNativeNavigation('dropoff')">
-      <span style="font-size:18px">🧭</span> Antar
-    </button>
+  <div id="map-container">
+    <div id="map"></div>
+    <div class="map-nav-buttons">
+      <button onclick="openNativeNavigation('pickup')">
+        <span style="font-size:18px">🧭</span> Navigasi Jemput
+      </button>
+      <button onclick="openNativeNavigation('dropoff')">
+        <span style="font-size:18px">📍</span> Navigasi Antar
+      </button>
+    </div>
   </div>
 
   <div class="order-detail">
-    <div class="address">
+    <div class="address-card">
+      <h3>Lokasi Penjemputan</h3>
       <p id="pickup-address">Memuat alamat penjemputan...</p>
-      <button class="chat-btn" onclick="chatUser()">💬</button>
     </div>
-    <div class="address">
+    
+    <div class="address-card">
+      <h3>Lokasi Tujuan</h3>
       <p id="dropoff-address">Memuat alamat tujuan...</p>
     </div>
-    <div class="price" id="price">Rp -</div>
+    
+    <div class="price-display">
+      <div>Total Biaya</div>
+      <div id="price" class="amount">Rp -</div>
+    </div>
+    
+    <div class="action-buttons">
+      <button class="chat-btn" onclick="chatUser()">💬 Chat Pelanggan</button>
+    </div>
+    
     <button class="arrival-btn" id="arrivalBtn">Saya sudah tiba</button>
   </div>
 
   <div class="notification" id="notification"></div>
 
-  <!-- Script JS tetap sama -->
   <!-- Mapbox JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
   <!-- Mapbox Directions Plugin -->
   <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js"></script>
-  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css" type="text/css">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css">
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- Turf.js for geospatial calculations -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
   <script>
-    // Script JavaScript tetap sama seperti sebelumnya
-    // ...
+    // Initialize Mapbox
+    function initMapbox() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mapboxToken = urlParams.get('mapboxToken');
+      
+      if (!mapboxToken) {
+        showNotification("Mapbox token tidak ditemukan", true);
+        return;
+      }
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      // Initialize map
+      const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [106.8, -6.2], // Default Jakarta
+        zoom: 13
+      });
+      
+      // Add zoom and rotation controls to the map.
+      map.addControl(new mapboxgl.NavigationControl());
+      
+      return map;
+    }
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+      const map = initMapbox();
+      
+      // URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const apiKey = urlParams.get('apiKey');
+      const databaseURL = urlParams.get('databaseURL');
+      const orderId = urlParams.get('orderId');
+      
+      if (!apiKey || !databaseURL || !orderId) {
+        showNotification("Parameter URL tidak lengkap", true);
+        return;
+      }
+      
+      // Initialize Firebase
+      const firebaseConfig = { apiKey, databaseURL };
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+      const orderRef = db.ref(`pesanan/${orderId}`);
+      
+      // Load order data
+      orderRef.on("value", (snapshot) => {
+        const orderData = snapshot.val();
+        if (!orderData) {
+          showNotification("Data order tidak ditemukan", true);
+          return;
+        }
+        
+        // Update UI
+        document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
+        document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat tidak tersedia";
+        document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
+        document.getElementById('price').textContent = formatCurrency(orderData.harga);
+        
+        // Set map markers and route
+        if (orderData.from_lat && orderData.from_lng) {
+          const pickupCoords = [orderData.from_lng, orderData.from_lat];
+          new mapboxgl.Marker({ color: '#4CAF50' })
+            .setLngLat(pickupCoords)
+            .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
+            .addTo(map);
+            
+          if (orderData.to_lat && orderData.to_lng) {
+            const dropoffCoords = [orderData.to_lng, orderData.to_lat];
+            new mapboxgl.Marker({ color: '#FF5252' })
+              .setLngLat(dropoffCoords)
+              .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
+              .addTo(map);
+              
+            // Fit bounds to include both points
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend(pickupCoords);
+            bounds.extend(dropoffCoords);
+            map.fitBounds(bounds, { padding: 50 });
+          }
+        }
+        
+        // Start tracking driver position
+        startTracking(map, orderRef, orderData);
+      });
+    });
+
+    // Rest of your JavaScript functions (showNotification, formatCurrency, etc.)
+    // ... (keep all your existing functions from previous code)
+    
   </script>
 </body>
 </html>
