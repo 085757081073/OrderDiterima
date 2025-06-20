@@ -6,111 +6,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
     .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px;
-      background: #f8f9fa;
-      font-weight: bold;
-      border-bottom: 1px solid #e0e0e0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px; background: #f8f9fa; font-weight: bold; border-bottom: 1px solid #e0e0e0;
     }
     .countdown {
-      position: absolute;
-      top: 70px;
-      width: 100%;
-      text-align: center;
-      font-size: 14px;
-      font-weight: bold;
-      background: rgba(255,255,255,0.7);
-      padding: 8px 0;
-      z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: absolute; top: 70px; width: 100%; text-align: center;
+      font-size: 14px; font-weight: bold; background: rgba(255,255,255,0.7);
+      padding: 8px 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    #map {
-      height: 300px;
-      width: 100%;
-    }
+    #map { height: 300px; width: 100%; }
     .floating-nav {
-      position: absolute;
-      top: 110px;
-      right: 10px;
-      z-index: 1001;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
+      position: absolute; top: 110px; right: 10px; z-index: 1001;
+      display: flex; flex-direction: column; gap: 5px;
     }
     .floating-nav button {
-      padding: 8px 12px;
-      background: #4285F4;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
+      padding: 8px 12px; background: #4285F4; color: white; border: none;
+      border-radius: 5px; cursor: pointer; font-size: 14px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     .order-detail {
-      padding: 15px;
-      background: white;
+      padding: 15px; background: white;
     }
     .address {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin: 15px 0;
-      padding-bottom: 15px;
-      border-bottom: 1px solid #f0f0f0;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin: 15px 0; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0;
     }
-    .address p {
-      margin: 0;
-      width: 85%;
-      line-height: 1.4;
-    }
+    .address p { margin: 0; width: 85%; line-height: 1.4; }
     .price {
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      margin-top: 20px;
-      color: #333;
+      font-size: 18px; font-weight: bold; text-align: center;
+      margin-top: 20px; color: #333;
     }
     .chat-btn {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: #4285F4;
+      background: none; border: none; font-size: 20px;
+      cursor: pointer; color: #4285F4;
     }
     .cancel-btn {
-      background: none;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      color: #FF5252;
+      background: none; border: none; font-size: 18px;
+      cursor: pointer; color: #FF5252;
     }
     .arrival-btn {
-      display: block;
-      width: calc(100% - 30px);
-      margin: 20px auto;
-      padding: 14px;
-      background: #f0f0f0;
-      color: #888;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: not-allowed;
-      text-align: center;
+      display: block; width: calc(100% - 30px); margin: 20px auto;
+      padding: 14px; background: #f0f0f0; color: #888; border: none;
+      border-radius: 10px; font-size: 16px; font-weight: bold;
+      cursor: not-allowed; text-align: center;
     }
     .arrival-btn.active {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
+      background: #4CAF50; color: white; cursor: pointer;
     }
   </style>
 </head>
@@ -141,22 +84,16 @@
     <button class="arrival-btn" id="arrivalBtn">Saya sudah tiba</button>
   </div>
 
-  <!-- Leaflet & Firebase -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // Inisialisasi variabel
-    let driverMarker;
-    let pickupMarker;
-    let dropoffMarker;
+    let driverMarker, pickupMarker, dropoffMarker;
     let arrivalBtn = document.getElementById('arrivalBtn');
-    let isNearPickup = false;
-    let isPickupCompleted = false;
-    let pelangganPhone = ''; // Variabel untuk menyimpan nomor telepon pelanggan
-
-    // Konfigurasi Firebase
+    let isNearPickup = false, isPickupCompleted = false;
+    let pelangganPhone = '';
+    const driverId = "driver123"; // ganti sesuai ID driver
     const firebaseConfig = {
       apiKey: "AIzaSyAFWLUF2aH-lD6UTofpRsy1rXbBrLHTagI",
       databaseURL: "https://chatting-87e87-default-rtdb.firebaseio.com"
@@ -164,45 +101,30 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Inisialisasi peta
     const map = L.map('map').setView([1.45907, 124.80219], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // Load data order dari Firebase
-    const orderId = "NkUvJ52CxdhkQGjswsJqsJfBp572"; // Ganti dengan orderId yang sesuai
+    const orderId = "NkUvJ52CxdhkQGjswsJqsJfBp572";
     const orderRef = db.ref("pesanan/" + orderId);
-    
+
     orderRef.on("value", (snapshot) => {
       const orderData = snapshot.val();
-      if (!orderData) {
-        console.error("Data order tidak ditemukan");
-        return;
-      }
+      if (!orderData) return;
 
-      // Simpan nomor telepon pelanggan
       pelangganPhone = orderData.PhoneNumber || '';
-      console.log("Nomor telepon pelanggan:", pelangganPhone);
-
-      // Update informasi order
       document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
-      document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat penjemputan tidak tersedia";
-      document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tujuan tidak tersedia";
-      document.getElementById('price').textContent = orderData.harga ? `Rp${orderData.harga}` : "Harga tidak tersedia";
+      document.getElementById('pickup-address').textContent = orderData.alamat_a || "-";
+      document.getElementById('dropoff-address').textContent = orderData.alamat_b || "-";
+      document.getElementById('price').textContent = orderData.harga ? `Rp${orderData.harga}` : "Rp -";
 
-      // Koordinat lokasi
       const pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
       const dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
 
-      // Update atau buat marker lokasi
       if (!pickupMarker) {
         pickupMarker = L.marker(pickupCoords, {
-          icon: L.divIcon({
-            className: 'pickup-marker',
-            html: '🟢',
-            iconSize: [25, 25]
-          })
+          icon: L.divIcon({ className: 'pickup-marker', html: '🟢', iconSize: [25, 25] })
         }).addTo(map).bindPopup("Lokasi Penjemputan");
       } else {
         pickupMarker.setLatLng(pickupCoords);
@@ -210,46 +132,33 @@
 
       if (!dropoffMarker) {
         dropoffMarker = L.marker(dropoffCoords, {
-          icon: L.divIcon({
-            className: 'dropoff-marker',
-            html: '🔴',
-            iconSize: [25, 25]
-          })
+          icon: L.divIcon({ className: 'dropoff-marker', html: '🔴', iconSize: [25, 25] })
         }).addTo(map).bindPopup("Lokasi Tujuan");
       } else {
         dropoffMarker.setLatLng(dropoffCoords);
       }
 
-      // Fit bounds untuk menampilkan semua marker
-      map.fitBounds([pickupCoords, dropoffMarker.getLatLng()]);
-
-      // Simulasi pergerakan driver (HAPUS DI PRODUCTION)
-      simulateDriverMovement(pickupCoords);
+      map.fitBounds([pickupCoords, dropoffCoords]);
+      startTrackingDriver(pickupCoords);
     });
 
-    // Fungsi untuk mensimulasikan pergerakan driver (Hanya untuk demo)
-    function simulateDriverMovement(pickupCoords) {
-      let demoLat = pickupCoords.lat - 0.01;
-      let demoLng = pickupCoords.lng - 0.01;
-      
-      updateDriverPosition(demoLat, demoLng, pickupCoords);
-      
-      const demoInterval = setInterval(() => {
-        demoLat += 0.0005;
-        demoLng += 0.0005;
-        updateDriverPosition(demoLat, demoLng, pickupCoords);
-        
-        // Hentikan simulasi jika sudah dekat
-        if (map.distance(L.latLng(demoLat, demoLng), pickupCoords) < 200) {
-          clearInterval(demoInterval);
-        }
-      }, 1000);
+    function startTrackingDriver(pickupCoords) {
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            db.ref("drivers_location/" + driverId).set({ lat, lng });
+            updateDriverPosition(lat, lng, pickupCoords);
+          },
+          (err) => console.error("Lokasi error:", err),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      }
     }
 
-    // Fungsi untuk update posisi driver
     function updateDriverPosition(lat, lng, pickupCoords) {
       const driverCoords = L.latLng(lat, lng);
-      
       if (!driverMarker) {
         driverMarker = L.marker(driverCoords, {
           icon: L.icon({
@@ -262,20 +171,16 @@
         driverMarker.setLatLng(driverCoords);
       }
 
-      // Hitung jarak ke lokasi penjemputan
       const distance = map.distance(driverCoords, pickupCoords);
-      
-      // Update info jarak
-      document.getElementById('countdown-info').textContent = 
+      document.getElementById('countdown-info').textContent =
         `Jarak ke penjemputan: ${(distance/1000).toFixed(2)} km - Estimasi: ${Math.round(distance/1000/0.4*60)} menit`;
-      
-      // Cek jika sudah dekat (<200m)
+
       if (distance < 200 && !isPickupCompleted) {
         isNearPickup = true;
         arrivalBtn.textContent = "Selesaikan Penjemputan";
         arrivalBtn.classList.add('active');
         arrivalBtn.disabled = false;
-      } else if (distance >= 200) {
+      } else {
         isNearPickup = false;
         arrivalBtn.textContent = "Saya sudah tiba";
         arrivalBtn.classList.remove('active');
@@ -283,88 +188,44 @@
       }
     }
 
-    // Fungsi untuk chat pelanggan yang dinamis
-    function chatUser() {
-      if (!pelangganPhone) {
-        alert("Nomor telepon pelanggan tidak tersedia");
-        return;
-      }
-      
-      // Format nomor untuk WhatsApp:
-      const formattedPhone = formatPhoneNumber(pelangganPhone);
-      window.open(`https://wa.me/${formattedPhone}`, '_blank');
-    }
-
-    // Fungsi untuk memformat nomor telepon
-    function formatPhoneNumber(phone) {
-      // Hilangkan semua karakter non-digit
-      let cleaned = phone.replace(/\D/g, '');
-      
-      // Jika diawali dengan 0, ganti dengan 62
-      if (cleaned.startsWith('0')) {
-        cleaned = '62' + cleaned.substring(1);
-      }
-      // Jika diawali dengan 8 (tanpa kode negara), tambahkan 62
-      else if (cleaned.startsWith('8')) {
-        cleaned = '62' + cleaned;
-      }
-      
-      return cleaned;
-    }
-
-    // Tombol arrival/selesaikan
     arrivalBtn.addEventListener('click', function() {
       if (isNearPickup && !isPickupCompleted) {
-        // Aksi ketika selesaikan penjemputan
-        alert("Penjemputan telah diselesaikan");
         isPickupCompleted = true;
         arrivalBtn.textContent = "Menuju Lokasi Tujuan";
         arrivalBtn.classList.remove('active');
-        
-        // Webstring action
-        console.log("webstring:complete_pickup");
+        if (window.AndroidInterface) {
+          window.AndroidInterface.setWebViewString("webstring:complete_pickup");
+        }
       } else if (isPickupCompleted) {
-        // Aksi ketika sampai tujuan
-        alert("Pesanan telah selesai");
-        console.log("webstring:complete_order");
+        if (window.AndroidInterface) {
+          window.AndroidInterface.setWebViewString("webstring:complete_order");
+        }
       }
     });
 
-    // Fungsi untuk membuka navigasi
+    function cancelOrder() {
+      orderRef.update({ status: "dibatalkan" }).then(() => {
+        if (window.AndroidInterface) {
+          window.AndroidInterface.setWebViewString("webstring:cancel_order");
+        }
+        document.body.innerHTML = "<h1 style='text-align:center;margin-top:50px'>Order telah dibatalkan</h1>";
+      });
+    }
+
+    function chatUser() {
+      if (!pelangganPhone) return;
+      const phone = pelangganPhone.replace(/\D/g, '').replace(/^0/, '62');
+      window.open(`https://wa.me/${phone}`, '_blank');
+    }
+
     function openNavigation(type) {
       orderRef.once("value").then(snapshot => {
         const data = snapshot.val();
         if (!data) return;
-
-        let targetLat, targetLng;
-        if (type === "pickup") {
-          targetLat = data.from_lat;
-          targetLng = data.from_lng || data.from_ing;
-        } else {
-          targetLat = data.to_lat;
-          targetLng = data.to_lng || data.to_ing;
-        }
-
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`, '_blank');
+        let lat = type === "pickup" ? data.from_lat : data.to_lat;
+        let lng = type === "pickup" ? (data.from_lng || data.from_ing) : (data.to_lng || data.to_ing);
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
       });
-    }
-
-    // Fungsi untuk membatalkan order
-    function cancelOrder() {
-      if (confirm("Apakah Anda yakin ingin membatalkan order ini?")) {
-        orderRef.update({ status: "dibatalkan" })
-          .then(() => {
-            alert("Order telah dibatalkan");
-            console.log("webstring:cancel_order");
-            // Tutup screen (simulasi)
-            setTimeout(() => {
-              document.body.innerHTML = "<h1 style='text-align:center;margin-top:50px'>Order telah dibatalkan</h1>";
-            }, 1000);
-          })
-          .catch(error => {
-            alert("Gagal membatalkan order: " + error.message);
-          });
-      }
     }
   </script>
 </body>
