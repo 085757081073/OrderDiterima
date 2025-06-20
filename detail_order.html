@@ -211,47 +211,54 @@
 
     // Fungsi untuk membuka aplikasi maps native
     function openNativeMap(type) {
-      if (!orderData) {
-        showNotification("Data lokasi belum dimuat", true);
-        return;
-      }
+  if (!orderData) {
+    showNotification("Data lokasi belum dimuat", true);
+    return;
+  }
 
-      let lat, lng;
-      if (type === 'pickup') {
-        lat = orderData.from_lat;
-        lng = orderData.from_lng || orderData.from_ing;
-      } else {
-        lat = orderData.to_lat;
-        lng = orderData.to_lng || orderData.to_ing;
-      }
+  let lat, lng;
+  if (type === 'pickup') {
+    lat = orderData.from_lat;
+    lng = orderData.from_lng || orderData.from_ing;
+  } else {
+    lat = orderData.to_lat;
+    lng = orderData.to_lng || orderData.to_ing;
+  }
 
-      // Coba buka dengan deep link universal
-      const universalUrl = `https://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`;
+  const urls = {
+    androidIntent: `intent://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;end`,
+    androidFallback: `https://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
+    ios: `maps://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
+    web: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+  };
+
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isAndroid) {
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = urls.androidIntent;
+      document.body.appendChild(iframe);
       
-      // Coba buka dengan intent Android
-      const androidIntent = `intent://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;end`;
-      
-      // Coba buka dengan maps iOS
-      const iosUrl = `maps://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`;
-      
-      // Coba buka dengan web fallback
-      const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-      
-      // Cek platform dan buka aplikasi yang sesuai
-      if (/Android/i.test(navigator.userAgent)) {
-        window.location.href = androidIntent;
-        setTimeout(() => {
-          window.location.href = universalUrl; // Fallback jika intent gagal
-        }, 500);
-      } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        window.location.href = iosUrl;
-        setTimeout(() => {
-          window.location.href = webUrl; // Fallback jika iOS maps tidak terinstall
-        }, 500);
-      } else {
-        window.open(webUrl, '_blank'); // Fallback untuk desktop/browser lain
-      }
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        window.location.href = urls.androidFallback;
+      }, 500);
+    } catch (e) {
+      console.error("Error opening intent:", e);
+      window.location.href = urls.androidFallback;
     }
+  } else if (isIOS) {
+    window.location.href = urls.ios;
+    setTimeout(() => {
+      window.location.href = urls.web;
+    }, 500);
+  } else {
+    window.open(urls.web, '_blank');
+  }
+}
 
     // Fungsi untuk memformat nomor telepon
     function formatPhoneNumber(phone) {
@@ -415,8 +422,20 @@
       document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
       document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat tidak tersedia";
       document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
-      document.getElementById('price').textContent = orderData.harga ? `Rp${parseInt(orderData.harga).toLocaleString('id-ID')}` : "Rp -";
+      document.getElementById('price').textContent = formatCurrency(orderData.harga);
 
+// Tambahkan fungsi ini di bagian script
+function formatCurrency(amount) {
+  if (!amount && amount !== 0) return "Rp -";
+  
+  const num = Number(amount);
+  if (isNaN(num)) {
+    console.error("Invalid price format:", amount);
+    return "Rp -";
+  }
+  
+  return "Rp" + num.toLocaleString('id-ID');
+}
       // Set marker lokasi
       pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
       dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
