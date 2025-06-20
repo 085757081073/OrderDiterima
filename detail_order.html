@@ -137,28 +137,42 @@
 
       map.fitBounds([latlngPickup, latlngDropoff]);
 
-      db.ref("drivers/driver1/location").on("value", snap => {
-        const loc = snap.val();
-        if (!loc) return;
+      const driverRef = db.ref("drivers/" + orderKey);
+driverRef.once("value").then(snap => {
+  const driverData = snap.val();
+  if (!driverData) return;
 
-        const driverPos = L.latLng(loc.lat, loc.lng);
-        if (!driverMarker) {
-          driverMarker = L.marker(driverPos, {
-            icon: L.divIcon({
-              className: 'driver-icon',
-              html: '🚗',
-              iconSize: [30, 30]
-            })
-          }).addTo(map);
-        } else {
-          driverMarker.setLatLng(driverPos);
-        }
+  const vehicle = driverData.vehicle || 'motor'; // default motor
+  const iconURL = {
+    motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+    mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
+    kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png'
+  }[vehicle];
 
-        const jarak = map.distance(driverPos, latlngPickup) / 1000;
-        const waktu = Math.round(jarak / 0.4 * 60); // 24 km/jam
-        document.getElementById('countdown-info').textContent =
-          `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
-      });
+  driverRef.child("location").on("value", locSnap => {
+    const loc = locSnap.val();
+    if (!loc) return;
+
+    const driverPos = L.latLng(loc.lat, loc.lng);
+    if (!driverMarker) {
+      driverMarker = L.marker(driverPos, {
+        icon: L.icon({
+          iconUrl: iconURL,
+          iconSize: [40, 40],
+          iconAnchor: [20, 40],
+          popupAnchor: [0, -40]
+        })
+      }).addTo(map);
+    } else {
+      driverMarker.setLatLng(driverPos);
+    }
+
+    const jarak = map.distance(driverPos, latlngPickup) / 1000;
+    const waktu = Math.round(jarak / 0.4 * 60); // estimasi 24km/jam
+    document.getElementById('countdown-info').textContent =
+      `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
+  });
+});
     });
 
     function openNav(type) {
