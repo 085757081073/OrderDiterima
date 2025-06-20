@@ -1,270 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detail Order</title>
+  <meta charset="utf-8" />
+  <title>Detail Order Driver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
     body {
-      background-color: #f8f9fa;
-      color: #333;
-      line-height: 1.6;
+      font-family: Arial, sans-serif;
+      margin: 0;
     }
-    .container {
-      max-width: 500px;
-      margin: 0 auto;
-      background: white;
-      min-height: 100vh;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    }
-    .header {
+    .top-bar {
       display: flex;
       justify-content: space-between;
-      padding: 16px;
-      border-bottom: 1px solid #eaeaea;
       align-items: center;
+      padding: 15px;
+      background: #f1f1f1;
+      font-weight: bold;
     }
-    .header-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #4CAF50;
-    }
-    .cancel-btn {
-      color: #FF5252;
-      font-weight: 600;
-      background: none;
-      border: none;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .time {
+    .countdown {
+      position: absolute;
+      top: 70px;
+      width: 100%;
       text-align: center;
-      padding: 12px;
-      color: #666;
       font-size: 14px;
-      background: #f5f5f5;
+      font-weight: bold;
+      background: rgba(255,255,255,0.9);
+      padding: 5px;
+      z-index: 1000;
     }
-    .order-content {
-      padding: 16px;
+    #map {
+      height: 300px;
     }
-    .customer-name {
-      font-weight: 600;
-      font-size: 18px;
-      margin-bottom: 12px;
+    .floating-nav {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      z-index: 1001;
     }
-    .restaurant {
-      font-size: 16px;
-      margin-bottom: 6px;
-    }
-    .address {
-      color: #666;
-      font-size: 14px;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-    .delivery-card {
-      background: #f9f9f9;
-      padding: 16px;
-      margin: 16px 0;
-      border-radius: 10px;
-      border: 1px solid #eee;
-    }
-    .delivery-title {
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #333;
-    }
-    .delivery-address {
-      color: #666;
-      line-height: 1.5;
-    }
-    .price {
-      text-align: right;
-      padding: 0 16px;
-      font-weight: 600;
-      font-size: 16px;
-      color: #333;
-    }
-    .action-btn {
-      display: block;
-      width: calc(100% - 32px);
-      margin: 20px 16px;
-      padding: 14px;
-      background: #4CAF50;
+    .floating-nav button {
+      padding: 8px 12px;
+      margin: 3px 0;
+      background: #007bff;
       color: white;
       border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
+      border-radius: 5px;
       cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      transition: background 0.3s;
     }
-    .action-btn:hover {
-      background: #43A047;
+    .order-detail {
+      padding: 15px;
+    }
+    .address {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .address p {
+      margin: 0;
+      width: 80%;
+    }
+    .price {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="header-title">Terima-otomatis</div>
-      <button class="cancel-btn" id="cancelBtn">Batalkan</button>
-    </div>
-    <div class="time" id="orderTime">1:04</div>
-    
-    <div class="order-content">
-      <div class="customer-name" id="customerName">Mas BIT</div>
-      <div class="restaurant" id="restaurantName">Nongki Nongki Cafe</div>
-      <div class="address" id="restaurantAddress">
-        Poskes Yonif Raider 712/Wiratama<br>
-        Luna Foodies
-      </div>
-      
-      <div class="delivery-card">
-        <div class="delivery-title">Manavigasi</div>
-        <div class="delivery-address" id="deliveryAddress">
-          Warung Embo Ida (Jl. Loreng, Bailang, Manado City, North Sulawesi)<br>
-          Jl. W.R. Supratman
-        </div>
-      </div>
-      
-      <div class="price" id="orderPrice">Rp17.500</div>
-      <button class="action-btn" id="actionBtn">Saya di sini</button>
-    </div>
+  <div class="top-bar">
+    <div id="passenger-name">Penumpang...</div>
+    <button onclick="cancelOrder()">❌ Batalkan</button>
   </div>
 
-  <!-- Firebase SDK -->
+  <div class="countdown" id="countdown-info">Menghitung jarak...</div>
+
+  <div id="map"></div>
+
+  <div class="floating-nav">
+    <button onclick="openNav('pickup')">🧭 Jemput</button>
+    <button onclick="openNav('dropoff')">🧭 Antar</button>
+  </div>
+
+  <div class="order-detail">
+    <div class="address">
+      <p id="pickup-address">Alamat jemput...</p>
+      <button onclick="chatUser()">💬</button>
+    </div>
+    <div class="address">
+      <p id="dropoff-address">Alamat tujuan...</p>
+    </div>
+    <div class="price" id="price">Rp -</div>
+  </div>
+
+  <!-- Leaflet & Firebase -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // Fungsi untuk mengambil parameter dari URL
-    function getUrlParams() {
-      const params = {};
-      const queryString = window.location.search.substring(1);
-      const pairs = queryString.split('&');
-      
-      pairs.forEach(pair => {
-        const [key, value] = pair.split('=');
-        if (key && value) {
-          params[key] = decodeURIComponent(value.replace(/\+/g, ' '));
+    function getParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
+
+    const firebaseURL = getParam('url');
+    const token = getParam('token'); // saat ini belum digunakan
+    const orderKey = getParam('order') || 'current';
+
+    const firebaseConfig = {
+      apiKey: "dummy", // bisa kosong jika tidak pakai auth
+      databaseURL: firebaseURL
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let map = L.map('map').setView([-1.2691, 116.8253], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let driverMarker;
+
+    db.ref("orders/" + orderKey).once("value").then(snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      document.getElementById('passenger-name').textContent = data.nama;
+      document.getElementById('pickup-address').textContent = data.alamat_jemput;
+      document.getElementById('dropoff-address').textContent = data.alamat_tujuan;
+      document.getElementById('price').textContent = "Rp " + data.harga;
+
+      const latlngPickup = L.latLng(data.pickup_lat, data.pickup_lng);
+      const latlngDropoff = L.latLng(data.drop_lat, data.drop_lng);
+
+      L.marker(latlngPickup).addTo(map).bindPopup("📍 Jemput");
+      L.marker(latlngDropoff).addTo(map).bindPopup("📍 Tujuan");
+
+      map.fitBounds([latlngPickup, latlngDropoff]);
+
+      db.ref("drivers/driver1/location").on("value", snap => {
+        const loc = snap.val();
+        if (!loc) return;
+
+        const driverPos = L.latLng(loc.lat, loc.lng);
+        if (!driverMarker) {
+          driverMarker = L.marker(driverPos, {
+            icon: L.divIcon({
+              className: 'driver-icon',
+              html: '🚗',
+              iconSize: [30, 30]
+            })
+          }).addTo(map);
+        } else {
+          driverMarker.setLatLng(driverPos);
         }
+
+        const jarak = map.distance(driverPos, latlngPickup) / 1000;
+        const waktu = Math.round(jarak / 0.4 * 60); // 24 km/jam
+        document.getElementById('countdown-info').textContent =
+          `Jarak ke jemput: ${jarak.toFixed(2)} km - Estimasi: ${waktu} menit`;
       });
-      
-      return params;
-    }
-
-    // Fungsi untuk menginisialisasi Firebase
-    function initializeFirebase(params) {
-      try {
-        // Konfigurasi Firebase dari URL parameters
-        const firebaseConfig = {
-          apiKey: params.apiKey,
-          authDomain: params.authDomain,
-          databaseURL: params.databaseURL,
-          projectId: params.projectId,
-          storageBucket: params.storageBucket,
-          messagingSenderId: params.messagingSenderId,
-          appId: params.appId
-        };
-        
-        // Cek apakah konfigurasi cukup
-        if (firebaseConfig.apiKey && firebaseConfig.databaseURL) {
-          firebase.initializeApp(firebaseConfig);
-          return true;
-        }
-      } catch (e) {
-        console.error("Error initializing Firebase:", e);
-      }
-      return false;
-    }
-
-    // Fungsi untuk memuat data order dari Firebase
-    function loadOrderData(orderId) {
-      if (!orderId) return;
-      
-      const db = firebase.database();
-      const orderRef = db.ref(`pesanan/${orderId}`);
-      
-      orderRef.on('value', (snapshot) => {
-        const orderData = snapshot.val();
-        if (orderData) {
-          updateUI(orderData);
-        }
-      });
-    }
-
-    // Fungsi untuk memperbarui UI dengan data order
-    function updateUI(orderData) {
-      // Format waktu
-      const formatTime = (timestamp) => {
-        if (!timestamp) return '1:04';
-        try {
-          const date = new Date(timestamp);
-          return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-        } catch (e) {
-          return '1:04';
-        }
-      };
-
-      // Format mata uang
-      const formatCurrency = (amount) => {
-        if (!amount) return 'Rp17.500';
-        return `Rp${parseInt(amount).toLocaleString('id-ID')}`;
-      };
-
-      // Update elemen UI
-      document.getElementById('orderTime').textContent = formatTime(orderData.wakku_order);
-      document.getElementById('customerName').textContent = orderData.name || 'Mas BIT';
-      document.getElementById('restaurantName').textContent = orderData.restaurantName || 'Nongki Nongki Cafe';
-      document.getElementById('restaurantAddress').innerHTML = 
-        `${orderData.alamat_a || 'Poskes Yonif Raider 712/Wiratama'}<br>
-         ${orderData.alamat_b || 'Luna Foodies'}`;
-      document.getElementById('deliveryAddress').innerHTML = 
-        `${orderData.deliveryAddress || 'Warung Embo Ida (Jl. Loreng, Bailang, Manado City, North Sulawesi)'}<br>
-         ${orderData.deliveryStreet || 'Jl. W.R. Supratman'}`;
-      document.getElementById('orderPrice').textContent = 
-        formatCurrency(orderData.harga_total || 17500);
-    }
-
-    // Fungsi untuk menangani pembatalan order
-    function setupCancelButton() {
-      document.getElementById('cancelBtn').addEventListener('click', () => {
-        if (confirm('Apakah Anda yakin ingin membatalkan order ini?')) {
-          alert('Order telah dibatalkan');
-          // Tambahkan logika update status di Firebase jika diperlukan
-        }
-      });
-    }
-
-    // Fungsi untuk menangani tombol "Saya di sini"
-    function setupActionButton() {
-      document.getElementById('actionBtn').addEventListener('click', () => {
-        alert('Lokasi Anda telah dikonfirmasi');
-        // Tambahkan logika update status di Firebase jika diperlukan
-      });
-    }
-
-    // Inisialisasi aplikasi saat halaman dimuat
-    document.addEventListener('DOMContentLoaded', () => {
-      const params = getUrlParams();
-      
-      if (initializeFirebase(params)) {
-        loadOrderData(params.orderId);
-      } else {
-        console.log("Using default data as Firebase initialization failed");
-      }
-      
-      setupCancelButton();
-      setupActionButton();
     });
+
+    function openNav(type) {
+      db.ref("orders/" + orderKey).once("value").then(snapshot => {
+        const data = snapshot.val();
+        let targetLat = type === "pickup" ? data.pickup_lat : data.drop_lat;
+        let targetLng = type === "pickup" ? data.pickup_lng : data.drop_lng;
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`, '_blank');
+      });
+    }
+
+    function chatUser() {
+      alert("Membuka fitur chat penumpang...");
+    }
+
+    function cancelOrder() {
+      if (confirm("Yakin ingin membatalkan order?")) {
+        db.ref("orders/" + orderKey).remove();
+        alert("Order dibatalkan.");
+      }
+    }
   </script>
 </body>
-</html>
+</html></html>
