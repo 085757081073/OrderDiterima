@@ -28,22 +28,20 @@
     }
 
     mapboxgl.accessToken = token;
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [0, 0],
-      zoom: 13
-    });
 
-    const parseCoord = (str) => str.split(',').map(Number).reverse();
+    const parseCoord = (str) => str.split(',').map(Number).reverse(); // [lng, lat]
     const fromCoord = parseCoord(from);
     const toCoord = parseCoord(to);
     const vehicleParts = vehicle.split(',');
     const vehicleCoord = [parseFloat(vehicleParts[1]), parseFloat(vehicleParts[0])];
     const vehicleType = vehicleParts[2] || 'motor';
 
-    let status = 'menuju_jemput';
-    let vehicleMarker;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: vehicleCoord,
+      zoom: 15
+    });
 
     const vehicleIcons = {
       motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
@@ -52,44 +50,66 @@
       default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
     };
 
-    const iconUrl = vehicleIcons[vehicleType] || vehicleIcons.default;
     const el = document.createElement('div');
-    el.style.backgroundImage = `url(${iconUrl})`;
+    el.style.backgroundImage = `url(${vehicleIcons[vehicleType] || vehicleIcons.default})`;
     el.style.width = '40px';
     el.style.height = '40px';
     el.style.backgroundSize = 'cover';
 
+    let vehicleMarker;
+    let status = 'menuju_jemput';
+
+    const distance = (a, b) => {
+      const R = 6371e3;
+      const toRad = x => x * Math.PI / 180;
+      const dLat = toRad(b[1] - a[1]);
+      const dLon = toRad(b[0] - a[0]);
+      const lat1 = toRad(a[1]);
+      const lat2 = toRad(b[1]);
+
+      const a2 = Math.sin(dLat/2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1 - a2));
+    };
+
     function addRoute(start, end) {
       const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}?geometries=geojson&access_token=${token}`;
       fetch(url)
-        .then(res => {
-          if (!res.ok) throw new Error("Gagal fetch rute");
-          return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
-          if (!data.routes || !data.routes.length) throw new Error("Rute kosong");
+          if (!data.routes || !data.routes.length) {
+            alert("Gagal mendapatkan rute.");
+            return;
+          }
           const route = data.routes[0].geometry;
-          const geojson = {
-            type: 'Feature',
-            geometry: route
-          };
-
           if (map.getSource('route')) {
-            map.getSource('route').setData(geojson);
+            map.getSource('route').setData({
+              type: 'Feature',
+              geometry: route
+            });
           } else {
-            map.addSource('route', { type: 'geojson', data: geojson });
+            map.addSource('route', {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                geometry: route
+              }
+            });
             map.addLayer({
               id: 'route',
               type: 'line',
               source: 'route',
-              layout: { 'line-cap': 'round', 'line-join': 'round' },
-              paint: { 'line-color': '#00BFFF', 'line-width': 4 }
+              layout: {
+                'line-cap': 'round',
+                'line-join': 'round'
+              },
+              paint: {
+                'line-color': '#00BFFF',
+                'line-width': 4
+              }
             });
           }
-        })
-        .catch(err => {
-          console.error("Error rute:", err.message);
-          alert("Gagal memuat rute: " + err.message);
+        }).catch(err => {
+          alert("Error mengambil rute: " + err);
         });
     }
 
@@ -104,25 +124,18 @@
       });
     }
 
-    function distance(a, b) {
-      const toRad = x => x * Math.PI / 180;
-      const R = 6371e3;
-      const φ1 = toRad(a[1]), φ2 = toRad(b[1]);
-      const Δφ = toRad(b[1] - a[1]);
-      const Δλ = toRad(b[0] - a[0]);
-      const a2 = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1 - a2));
-    }
-
     map.on('load', () => {
       map.addControl(new mapboxgl.NavigationControl());
 
-      new mapboxgl.Marker({ color: '#4CAF50' }).setLngLat(fromCoord).setPopup(new mapboxgl.Popup().setText("Titik Jemput")).addTo(map);
-      new mapboxgl.Marker({ color: '#FF5252' }).setLngLat(toCoord).setPopup(new mapboxgl.Popup().setText("Tujuan")).addTo(map);
+      new mapboxgl.Marker({ color: 'green' }).setLngLat(fromCoord).setPopup(new mapboxgl.Popup().setText("Lokasi Jemput")).addTo(map);
+      new mapboxgl.Marker({ color: 'red' }).setLngLat(toCoord).setPopup(new mapboxgl.Popup().setText("Lokasi Tujuan")).addTo(map);
+
       vehicleMarker = new mapboxgl.Marker(el).setLngLat(vehicleCoord).addTo(map);
 
-      addRoute(vehicleCoord, fromCoord);
       map.fitBounds([fromCoord, toCoord, vehicleCoord], { padding: 60 });
+
+      // Rute awal: dari posisi awal kendaraan ke lokasi jemput
+      addRoute(vehicleCoord, fromCoord);
 
       setInterval(() => {
         navigator.geolocation.getCurrentPosition(pos => {
@@ -140,7 +153,7 @@
           } else if (status === 'menuju_tujuan' && distance(coord, toCoord) < 50) {
             status = 'selesai';
             updateFirebase(lat, lng, 'selesai');
-            alert("Perjalanan selesai");
+            alert("Perjalanan selesai.");
           }
         });
       }, 5000);
