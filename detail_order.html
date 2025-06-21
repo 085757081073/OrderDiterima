@@ -2,9 +2,10 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Detail Order Driver</title>
+  <title>Detail Order Driver (Mapbox)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Mapbox CSS & JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -22,458 +23,113 @@
       border-bottom: 1px solid #e0e0e0;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .countdown {
-      position: absolute;
-      top: 70px;
-      width: 100%;
-      text-align: center;
-      font-size: 14px;
-      font-weight: bold;
-      background: rgba(255,255,255,0.9);
-      padding: 10px 0;
-      z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
     #map {
       height: 300px;
       width: 100%;
       min-height: 250px;
       background: #e9e9e9;
     }
-    .floating-nav {
-      position: absolute;
-      top: 110px;
-      right: 15px;
-      z-index: 1001;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .floating-nav button {
-      padding: 10px 15px;
-      background: #4285F4;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .order-detail {
-      padding: 20px;
-      background: white;
-      margin-top: -5px;
-    }
-    .address {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin: 15px 0;
-      padding-bottom: 15px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .address p {
-      margin: 0;
-      width: 85%;
-      line-height: 1.5;
-      color: #333;
-    }
-    .price {
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      margin-top: 20px;
-      color: #333;
-    }
-    .chat-btn {
-      background: none;
-      border: none;
-      font-size: 22px;
-      cursor: pointer;
-      color: #4285F4;
-      padding: 5px;
-    }
-    .cancel-btn {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: #FF5252;
-      padding: 5px;
-    }
-    .arrival-btn {
-      display: block;
-      width: calc(100% - 40px);
-      margin: 25px auto;
-      padding: 15px;
-      background: #f0f0f0;
-      color: #888;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: not-allowed;
-      text-align: center;
-      transition: all 0.3s;
-    }
-    .arrival-btn.active {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    .notification {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #4CAF50;
-      color: white;
-      padding: 12px 25px;
-      border-radius: 8px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-      z-index: 2000;
-      display: none;
-      animation: fadeIn 0.3s;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; top: 10px; }
-      to { opacity: 1; top: 20px; }
-    }
+    /* ... (pertahankan style lainnya yang sama) ... */
   </style>
 </head>
 <body>
-  <div class="top-bar">
-    <div id="passenger-name">Memuat data...</div>
-    <button class="cancel-btn" onclick="cancelOrder()">✖ Batalkan</button>
-  </div>
+  <!-- ... (pertahankan struktur HTML yang sama) ... -->
 
-  <div class="countdown" id="countdown-info">Menghitung jarak...</div>
-
-  <div id="map"></div>
-
-  <div class="floating-nav">
-    <button onclick="openNativeNavigation('pickup')">
-      <span style="font-size:18px">🧭</span> Jemput
-    </button>
-    <button onclick="openNativeNavigation('dropoff')">
-      <span style="font-size:18px">🧭</span> Antar
-    </button>
-  </div>
-
-  <div class="order-detail">
-    <div class="address">
-      <p id="pickup-address">Memuat alamat penjemputan...</p>
-      <button class="chat-btn" onclick="chatUser()">💬</button>
-    </div>
-    <div class="address">
-      <p id="dropoff-address">Memuat alamat tujuan...</p>
-    </div>
-    <div class="price" id="price">Rp -</div>
-    <button class="arrival-btn" id="arrivalBtn">Saya sudah tiba</button>
-  </div>
-
-  <div class="notification" id="notification"></div>
-
-  <!-- Leaflet & Firebase -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Ganti Leaflet dengan Mapbox -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // Variabel global
+    // Ambil Mapbox API key dari URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const mapboxToken = urlParams.get('mapboxToken'); // Parameter baru
+    
+    // Inisialisasi Mapbox
+    mapboxgl.accessToken = mapboxToken || 'default_token_jika_kosong'; // Fallback token
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [106.8, -6.2], // Default center
+      zoom: 13
+    });
+
+    // Variabel marker
     let driverMarker, pickupMarker, dropoffMarker;
-    let arrivalBtn = document.getElementById('arrivalBtn');
-    let isNearPickup = false, isPickupCompleted = false;
-    let pelangganPhone = '';
-    let pickupCoords, dropoffCoords;
-    let orderData = {};
 
-    // Inisialisasi peta
-    const map = L.map('map').setView([-6.2, 106.8], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
-
-    // Fungsi untuk menampilkan notifikasi
-    function showNotification(message, isError = false) {
-      const notification = document.getElementById('notification');
-      notification.textContent = message;
-      notification.style.background = isError ? '#FF5252' : '#4CAF50';
-      notification.style.display = 'block';
-      
-      setTimeout(() => {
-        notification.style.display = 'none';
-      }, 3000);
-    }
-
-    // Fungsi untuk membuka navigasi di aplikasi maps native
-    function openNativeNavigation(type) {
-      if (!orderData) {
-        showNotification("Data lokasi belum dimuat", true);
-        return;
-      }
-
-      let lat, lng;
-      if (type === 'pickup') {
-        lat = orderData.from_lat;
-        lng = orderData.from_lng || orderData.from_ing;
-      } else {
-        lat = orderData.to_lat;
-        lng = orderData.to_lng || orderData.to_ing;
-      }
-
-      // URL untuk berbagai platform
-      const urls = {
-        android: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,
-        ios: `maps://maps.google.com/maps?daddr=${lat},${lng}&directionsmode=driving`,
-        web: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-      };
-
-      // Deteksi perangkat
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      // Buka aplikasi maps sesuai platform
-      if (isAndroid) {
-        // Coba buka Google Maps di Android
-        window.location.href = `google.navigation:q=${lat},${lng}`;
-        setTimeout(() => {
-          // Fallback ke Google Maps web jika gagal
-          window.open(urls.android, '_blank');
-        }, 500);
-      } else if (isIOS) {
-        // Buka Apple Maps di iOS
-        window.location.href = urls.ios;
-        setTimeout(() => {
-          // Fallback ke Google Maps web jika gagal
-          window.open(urls.web, '_blank');
-        }, 500);
-      } else {
-        // Fallback untuk desktop/browser lain
-        window.open(urls.web, '_blank');
-      }
-    }
-
-    // Fungsi untuk memformat harga dengan benar
-    function formatCurrency(amount) {
-      if (amount === undefined || amount === null) return "Rp -";
-      
-      // Bersihkan format harga (hapus karakter non-digit)
-      const cleanedAmount = String(amount).replace(/\D/g, '');
-      const num = Number(cleanedAmount);
-      
-      if (isNaN(num)) return "Rp -";
-      
-      return "Rp" + num.toLocaleString('id-ID');
-    }
-
-    // Fungsi untuk chat pelanggan via WhatsApp
-    function chatUser() {
-      if (!pelangganPhone) {
-        showNotification("Nomor pelanggan tidak tersedia", true);
-        return;
-      }
-      
-      // Format nomor telepon (pastikan diawali 62)
-      const formattedPhone = pelangganPhone.replace(/^0/, '62').replace(/\D/g, '');
-      const waUrl = `https://wa.me/${formattedPhone}`;
-      
-      window.open(waUrl, '_blank');
-    }
-
-    // Fungsi untuk membatalkan order
-    function cancelOrder() {
-      if (confirm("Apakah Anda yakin ingin membatalkan order ini?")) {
-        if (orderRef) {
-          orderRef.update({ 
-            status_driver: "dibatalkan",
-            waktu_batal: firebase.database.ServerValue.TIMESTAMP 
-          }).then(() => {
-            showNotification("Order telah dibatalkan");
-            sendWebString("cancel_order");
-            setTimeout(() => {
-              document.body.innerHTML = `
-                <div style="text-align:center;margin-top:50px;padding:20px;">
-                  <h2>Order telah dibatalkan</h2>
-                  <p>Silahkan tutup halaman ini</p>
-                </div>`;
-            }, 1500);
-          }).catch(error => {
-            showNotification("Gagal membatalkan order", true);
-          });
-        }
-      }
-    }
-
-    // Fungsi untuk mengirim webstring ke native app
-    function sendWebString(action) {
-      if (window.AndroidInterface) {
-        window.AndroidInterface.setWebViewString(`webstring:${action}`);
-      } else if (window.webkit && window.webkit.messageHandlers) {
-        // Untuk iOS
-        window.webkit.messageHandlers.observer.postMessage(`webstring:${action}`);
-      } else {
-        console.log(`webstring:${action}`); // Fallback untuk debugging
-      }
-    }
-
-    // Fungsi untuk update posisi driver
+    // Fungsi update posisi driver (Mapbox version)
     function updateDriverPosition(lat, lng) {
-      const driverCoords = L.latLng(lat, lng);
+      const driverCoords = [lng, lat];
       
       if (!driverMarker) {
-        driverMarker = L.marker(driverCoords, {
-          icon: L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-            iconSize: [40, 40],
-            iconAnchor: [20, 40]
-          })
-        }).addTo(map).bindPopup("Posisi Anda");
-      } else {
-        driverMarker.setLatLng(driverCoords);
-      }
-
-      // Hitung jarak ke lokasi penjemputan
-      const distance = map.distance(driverCoords, pickupCoords);
-      const duration = Math.round(distance / 1000 / 0.4 * 60); // Asumsi 40km/jam
-      
-      document.getElementById('countdown-info').textContent = 
-        `Jarak ke penjemputan: ${(distance/1000).toFixed(2)} km - Estimasi: ${duration} menit`;
-      
-      // Update status tombol berdasarkan jarak
-      if (distance < 200 && !isPickupCompleted) {
-        isNearPickup = true;
-        arrivalBtn.textContent = "Selesaikan Penjemputan";
-        arrivalBtn.classList.add('active');
-        arrivalBtn.disabled = false;
-      } else if (!isPickupCompleted) {
-        isNearPickup = false;
-        arrivalBtn.textContent = "Saya sudah tiba";
-        arrivalBtn.classList.remove('active');
-        arrivalBtn.disabled = true;
-      }
-
-      // Update posisi driver di Firebase
-      if (orderRef) {
-        orderRef.update({
-          lat_driver: lat,
-          lng_driver: lng,
-          last_update: firebase.database.ServerValue.TIMESTAMP
-        }).catch(error => {
-          console.error("Gagal update posisi:", error);
-        });
-      }
-    }
-
-    // Fungsi untuk memulai tracking posisi
-    function startTracking() {
-      if (navigator.geolocation) {
-        const geoOptions = {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 30000
-        };
+        // Buat marker driver
+        const el = document.createElement('div');
+        el.className = 'driver-marker';
+        el.innerHTML = '🚗';
+        el.style.fontSize = '20px';
         
-        navigator.geolocation.watchPosition(
-          (position) => {
-            updateDriverPosition(position.coords.latitude, position.coords.longitude);
-          },
-          (error) => {
-            console.error("Error geolocation:", error);
-            showNotification("Gagal mendapatkan lokasi", true);
-          },
-          geoOptions
-        );
+        driverMarker = new mapboxgl.Marker(el)
+          .setLngLat(driverCoords)
+          .setPopup(new mapboxgl.Popup().setHTML("Posisi Anda"))
+          .addTo(map);
       } else {
-        showNotification("Browser tidak mendukung geolocation", true);
+        driverMarker.setLngLat(driverCoords);
       }
+
+      // Hitung jarak ke lokasi penjemputan (gunakan turf.js untuk akurasi)
+      if (pickupCoords) {
+        const distance = turf.distance(
+          turf.point(driverCoords),
+          turf.point(pickupCoords),
+          { units: 'kilometers' }
+        );
+        
+        document.getElementById('countdown-info').textContent = 
+          `Jarak ke penjemputan: ${distance.toFixed(2)} km`;
+      }
+
+      // ... (pertahankan logika lainnya)
     }
 
-    // Inisialisasi Firebase dan load data
+    // Load data order (sama seperti sebelumnya)
     const urlParams = new URLSearchParams(window.location.search);
     const apiKey = urlParams.get('apiKey');
     const databaseURL = urlParams.get('databaseURL');
     const orderId = urlParams.get('orderId');
 
-    if (!apiKey || !databaseURL || !orderId) {
-      showNotification("Parameter URL tidak lengkap", true);
-      throw new Error("Missing required URL parameters");
+    // ... (pertahankan kode Firebase yang sama)
+
+    // Saat data order dimuat:
+    function initMapWithOrderData(orderData) {
+      pickupCoords = [orderData.from_lng || orderData.from_ing, orderData.from_lat];
+      dropoffCoords = [orderData.to_lng || orderData.to_ing, orderData.to_lat];
+
+      // Tambahkan marker penjemputan
+      pickupMarker = new mapboxgl.Marker({ color: '#4CAF50' })
+        .setLngLat(pickupCoords)
+        .setPopup(new mapboxgl.Popup().setHTML("Lokasi Penjemputan"))
+        .addTo(map);
+
+      // Tambahkan marker tujuan
+      dropoffMarker = new mapboxgl.Marker({ color: '#FF5252' })
+        .setLngLat(dropoffCoords)
+        .setPopup(new mapboxgl.Popup().setHTML("Lokasi Tujuan"))
+        .addTo(map);
+
+      // Fit bounds
+      const bounds = new mapboxgl.LngLatBounds()
+        .extend(pickupCoords)
+        .extend(dropoffCoords);
+      map.fitBounds(bounds, { padding: 50 });
+
+      // Mulai tracking
+      startTracking();
     }
 
-    const firebaseConfig = { apiKey, databaseURL };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const orderRef = db.ref(`pesanan/${orderId}`);
-
-    // Load data order
-    orderRef.on("value", (snapshot) => {
-      orderData = snapshot.val();
-      if (!orderData) {
-        showNotification("Data order tidak ditemukan", true);
-        return;
-      }
-
-      // Update UI dengan data order
-      pelangganPhone = orderData.PhoneNumber || '';
-      document.getElementById('passenger-name').textContent = orderData.name || "Pelanggan";
-      document.getElementById('pickup-address').textContent = orderData.alamat_a || "Alamat tidak tersedia";
-      document.getElementById('dropoff-address').textContent = orderData.alamat_b || "Alamat tidak tersedia";
-      document.getElementById('price').textContent = formatCurrency(orderData.harga);
-
-      // Set marker lokasi
-      pickupCoords = L.latLng(orderData.from_lat, orderData.from_lng || orderData.from_ing);
-      dropoffCoords = L.latLng(orderData.to_lat, orderData.to_lng || orderData.to_ing);
-
-      if (!pickupMarker) {
-        pickupMarker = L.marker(pickupCoords, {
-          icon: L.divIcon({ className: 'pickup-marker', html: '🟢', iconSize: [25, 25] })
-        }).addTo(map).bindPopup("Lokasi Penjemputan");
-      }
-
-      if (!dropoffMarker) {
-        dropoffMarker = L.marker(dropoffCoords, {
-          icon: L.divIcon({ className: 'dropoff-marker', html: '🔴', iconSize: [25, 25] })
-        }).addTo(map).bindPopup("Lokasi Tujuan");
-      }
-
-      map.fitBounds([pickupCoords, dropoffCoords]);
-      startTracking();
-    });
-
-    // Event listener untuk tombol arrival
-    arrivalBtn.addEventListener('click', () => {
-      if (isNearPickup && !isPickupCompleted) {
-        // Konfirmasi tiba di lokasi penjemputan
-        orderRef.update({ 
-          status_driver: "tiba_di_jemput",
-          waktu_tiba: firebase.database.ServerValue.TIMESTAMP 
-        }).then(() => {
-          showNotification("Penjemputan diselesaikan");
-          arrivalBtn.textContent = "Mulai Mengantar";
-          isPickupCompleted = true;
-          sendWebString("tiba_di_jemput");
-        }).catch(error => {
-          showNotification("Gagal update status", true);
-        });
-        
-      } else if (isPickupCompleted) {
-        // Konfirmasi mulai pengantaran
-        orderRef.update({ 
-          status_driver: "dalam_pengantaran",
-          waktu_berangkat: firebase.database.ServerValue.TIMESTAMP 
-        }).then(() => {
-          showNotification("Pesanan sedang diantar");
-          arrivalBtn.textContent = "Sedang Mengantar...";
-          arrivalBtn.disabled = true;
-          sendWebString("mulai_pengantaran");
-        }).catch(error => {
-          showNotification("Gagal update status", true);
-        });
-      }
-    });
+    // ... (pertahankan fungsi lainnya seperti chatUser(), cancelOrder(), dll)
   </script>
+  
+  <!-- Load turf.js untuk kalkulasi jarak -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 </body>
 </html>
