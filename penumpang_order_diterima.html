@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Tracking Perjalanan</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f7fa;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3498db, #1a5276);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        
+        .header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+        }
+        
+        .status-container {
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 10px auto;
+            max-width: 500px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .info-panel {
+            background: white;
+            padding: 15px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        
+        .driver-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .driver-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3498db, #2c3e50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .driver-details {
+            flex: 1;
+        }
+        
+        .driver-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .vehicle-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #7f8c8d;
+        }
+        
+        .vehicle-icon {
+            font-size: 20px;
+            color: #e67e22;
+        }
+        
+        .address-section {
+            margin-bottom: 15px;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .section-title i {
+            color: #3498db;
+        }
+        
+        .address-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .address-card.destination {
+            border-left-color: #e74c3c;
+        }
+        
+        .eta-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e8f4ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        
+        .eta-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .eta-label {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .eta-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .eta-unit {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .price-info {
+            text-align: right;
+            font-weight: bold;
+            font-size: 18px;
+            color: #27ae60;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .chat-btn {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .call-btn {
+            background: #3498db;
+            color: white;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .safety-message {
+            background: #fff8e1;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid #f1c40f;
+        }
+        
+        .safety-icon {
+            color: #f1c40f;
+            font-size: 24px;
+        }
+        
+        .safety-text {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 30%;
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
+        
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .driver-avatar {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            .driver-name {
+                font-size: 16px;
+            }
+            
+            .eta-value {
+                font-size: 20px;
+            }
+            
+            .action-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-map-marker-alt"></i> Live Tracking Perjalanan</h1>
+        <div class="status-container">
+            <div class="status-indicator"></div>
+            <span id="status-text">Driver sedang menuju lokasi penjemputan</span>
+        </div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Memuat peta dan data perjalanan...</div>
+        </div>
+    </div>
+    
+    <div class="info-panel">
+        <div class="driver-info">
+            <div class="driver-avatar" id="driver-avatar">JD</div>
+            <div class="driver-details">
+                <div class="driver-name" id="driver-name">John Driver</div>
+                <div class="vehicle-info">
+                    <i class="fas fa-motorcycle vehicle-icon"></i>
+                    <span id="vehicle-type">Motor</span> • 
+                    <span id="license-plate">B 1234 ABC</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress" id="journey-progress"></div>
+            </div>
+            <div class="progress-labels">
+                <span>Penjemputan</span>
+                <span>Perjalanan</span>
+                <span>Tujuan</span>
+            </div>
+        </div>
+        
+        <div class="address-section">
+            <div class="section-title">
+                <i class="fas fa-flag"></i>
+                <h3>Lokasi</h3>
+            </div>
+            <div class="address-card">
+                <div class="address-label">Penjemputan:</div>
+                <div class="address-text" id="pickup-address">Jl. Sudirman No. 123, Jakarta Pusat</div>
+            </div>
+            <div class="address-card destination">
+                <div class="address-label">Tujuan:</div>
+                <div class="address-text" id="destination-address">Apartemen Taman Rasuna, Kuningan</div>
+            </div>
+        </div>
+        
+        <div class="eta-container">
+            <div class="eta-info">
+                <span class="eta-label">Estimasi Sampai</span>
+                <div>
+                    <span class="eta-value" id="eta-value">8</span>
+                    <span class="eta-unit">menit</span>
+                </div>
+            </div>
+            <div class="price-info">
+                <div>Total Biaya</div>
+                <div id="trip-price">Rp 25.000</div>
+            </div>
+        </div>
+        
+        <div class="safety-message">
+            <i class="fas fa-seedling safety-icon"></i>
+            <div class="safety-text" id="safety-message">
+                <strong>Ingat keselamatan!</strong> Pastikan Anda menggunakan sabuk pengaman (untuk mobil) 
+                atau helm (untuk motor) selama perjalanan.
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="action-btn chat-btn">
+                <i class="fas fa-comment"></i> Chat Driver
+            </button>
+            <button class="action-btn call-btn">
+                <i class="fas fa-phone"></i> Hubungi
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Inisialisasi Mapbox
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+        
+        // Parameter URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('order_id') || 'default_order';
+        const firebaseURL = urlParams.get('firebase_url') || 'https://your-firebase-database-url';
+        
+        // Variabel global
+        let map;
+        let driverMarker;
+        let driverPosition = null;
+        let pickupPosition = [106.8456, -6.2088]; // [lng, lat]
+        let destinationPosition = [106.8077, -6.2275]; // [lng, lat]
+        let routeGeoJson = null;
+        let routeLayerId = null;
+        let driverName = "John Doe";
+        let vehicleType = "motor";
+        let licensePlate = "B 1234 ABC";
+        let pickupAddress = "Jl. Sudirman No. 123, Jakarta Pusat";
+        let destinationAddress = "Apartemen Taman Rasuna, Kuningan";
+        let tripPrice = "Rp 25.000";
+        
+        // Elemen UI
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const statusText = document.getElementById('status-text');
+        const driverAvatar = document.getElementById('driver-avatar');
+        const driverNameElement = document.getElementById('driver-name');
+        const vehicleTypeElement = document.getElementById('vehicle-type');
+        const licensePlateElement = document.getElementById('license-plate');
+        const pickupAddressElement = document.getElementById('pickup-address');
+        const destinationAddressElement = document.getElementById('destination-address');
+        const tripPriceElement = document.getElementById('trip-price');
+        const etaValue = document.getElementById('eta-value');
+        const journeyProgress = document.getElementById('journey-progress');
+        const safetyMessage = document.getElementById('safety-message');
+        
+        // Fungsi inisialisasi peta
+        function initMap() {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: pickupPosition,
+                zoom: 13
+            });
+            
+            // Tambahkan kontrol navigasi
+            map.addControl(new mapboxgl.NavigationControl());
+            
+            // Tambahkan geolocation control
+            map.addControl(new mapboxgl.GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                trackUserLocation: true,
+                showUserHeading: true
+            }));
+            
+            map.on('load', () => {
+                // Tambahkan marker lokasi penjemputan
+                new mapboxgl.Marker({ color: '#3498db' })
+                    .setLngLat(pickupPosition)
+                    .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Penjemputan</b>"))
+                    .addTo(map);
+                
+                // Tambahkan marker lokasi tujuan
+                new mapboxgl.Marker({ color: '#e74c3c' })
+                    .setLngLat(destinationPosition)
+                    .setPopup(new mapboxgl.Popup().setHTML("<b>Lokasi Tujuan</b>"))
+                    .addTo(map);
+                
+                // Buat marker kendaraan driver
+                const el = document.createElement('div');
+                el.className = 'driver-marker';
+                el.style.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/5811/5811823.png')";
+                el.style.width = '40px';
+                el.style.height = '40px';
+                el.style.backgroundSize = 'cover';
+                
+                driverMarker = new mapboxgl.Marker(el)
+                    .setLngLat(pickupPosition)
+                    .addTo(map);
+                
+                // Sembunyikan loading setelah peta siap
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                    // Ambil data dari Firebase
+                    fetchOrderData();
+                }, 1500);
+            });
+        }
+        
+        // Fungsi untuk mengambil data order dari Firebase
+        function fetchOrderData() {
+            // Simulasi permintaan ke Firebase
+            setTimeout(() => {
+                // Data yang diterima dari Firebase
+                const orderData = {
+                    driver_name: "Budi Santoso",
+                    plat_nomor: "B 7890 XYZ",
+                    alamat_a: "Jl. MH Thamrin No. 1, Jakarta Pusat",
+                    alamat_b: "Plaza Senayan, Jakarta Selatan",
+                    from_lat: -6.1945,
+                    from_lng: 106.8229,
+                    to_lat: -6.2245,
+                    to_lng: 106.8005,
+                    harga: 35000,
+                    status: "menuju_jemput",
+                    vehicle: "motor",
+                    lat_driver: -6.1950,
+                    lng_driver: 106.8235
+                };
+                
+                // Perbarui UI dengan data yang diterima
+                updateUIWithOrderData(orderData);
+                
+                // Perbarui posisi driver
+                updateDriverPosition([orderData.lng_driver, orderData.lat_driver]);
+                
+                // Hitung rute
+                calculateRoute([orderData.lng_driver, orderData.lat_driver], 
+                                [orderData.from_lng, orderData.from_lat], 
+                                [orderData.to_lng, orderData.to_lat]);
+                
+                // Perbarui status perjalanan
+                updateTripStatus(orderData.status);
+                
+                // Perbarui pesan keselamatan berdasarkan kendaraan
+                updateSafetyMessage(orderData.vehicle);
+            }, 1000);
+        }
+        
+        // Fungsi untuk memperbarui UI dengan data order
+        function updateUIWithOrderData(data) {
+            // Tampilkan inisial nama driver
+            const nameParts = data.driver_name.split(' ');
+            const initials = nameParts.length > 1 ? 
+                nameParts[0][0] + nameParts[nameParts.length-1][0] : 
+                data.driver_name.substring(0, 2);
+            driverAvatar.textContent = initials;
+            
+            driverNameElement.textContent = data.driver_name;
+            vehicleTypeElement.textContent = data.vehicle === "motor" ? "Motor" : "Mobil";
+            licensePlateElement.textContent = data.plat_nomor;
+            pickupAddressElement.textContent = data.alamat_a;
+            destinationAddressElement.textContent = data.alamat_b;
+            tripPriceElement.textContent = `Rp ${data.harga.toLocaleString('id-ID')}`;
+        }
+        
+        // Fungsi untuk memperbarui posisi driver
+        function updateDriverPosition(position) {
+            if (!driverMarker) return;
+            
+            driverPosition = position;
+            driverMarker.setLngLat(position);
+            
+            // Geser peta untuk mengikuti driver
+            map.flyTo({
+                center: position,
+                zoom: 14,
+                speed: 0.8,
+                curve: 1,
+                easing: (t) => t
+            });
+            
+            // Perbarui ETA (dalam implementasi nyata, hitung berdasarkan jarak dan kecepatan)
+            const randomEta = Math.floor(Math.random() * 5) + 5;
+            etaValue.textContent = randomEta;
+        }
+        
+        // Fungsi untuk menghitung dan menampilkan rute
+        function calculateRoute(driverPos, pickupPos, destinationPos) {
+            const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${driverPos[0]},${driverPos[1]};${pickupPos[0]},${pickupPos[1]};${destinationPos[0]},${destinationPos[1]}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+            
+            fetch(routeUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.routes && data.routes.length) {
+                        routeGeoJson = data.routes[0].geometry;
+                        
+                        // Hapus layer rute lama jika ada
+                  
