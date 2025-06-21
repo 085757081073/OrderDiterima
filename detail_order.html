@@ -28,7 +28,6 @@
     }
 
     mapboxgl.accessToken = token;
-
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/dark-v11',
@@ -36,8 +35,7 @@
       zoom: 13
     });
 
-    const parseCoord = (str) => str.split(',').map(Number).reverse(); // [lng, lat]
-
+    const parseCoord = (str) => str.split(',').map(Number).reverse();
     const fromCoord = parseCoord(from);
     const toCoord = parseCoord(to);
     const vehicleParts = vehicle.split(',');
@@ -62,23 +60,24 @@
     el.style.backgroundSize = 'cover';
 
     function addRoute(start, end) {
-      fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}?geometries=geojson&access_token=${token}`)
-        .then(res => res.json())
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}?geometries=geojson&access_token=${token}`;
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error("Gagal fetch rute");
+          return res.json();
+        })
         .then(data => {
+          if (!data.routes || !data.routes.length) throw new Error("Rute kosong");
           const route = data.routes[0].geometry;
+          const geojson = {
+            type: 'Feature',
+            geometry: route
+          };
+
           if (map.getSource('route')) {
-            map.getSource('route').setData({
-              type: 'Feature',
-              geometry: route
-            });
+            map.getSource('route').setData(geojson);
           } else {
-            map.addSource('route', {
-              type: 'geojson',
-              data: {
-                type: 'Feature',
-                geometry: route
-              }
-            });
+            map.addSource('route', { type: 'geojson', data: geojson });
             map.addLayer({
               id: 'route',
               type: 'line',
@@ -87,6 +86,10 @@
               paint: { 'line-color': '#00BFFF', 'line-width': 4 }
             });
           }
+        })
+        .catch(err => {
+          console.error("Error rute:", err.message);
+          alert("Gagal memuat rute: " + err.message);
         });
     }
 
@@ -116,11 +119,9 @@
 
       new mapboxgl.Marker({ color: '#4CAF50' }).setLngLat(fromCoord).setPopup(new mapboxgl.Popup().setText("Titik Jemput")).addTo(map);
       new mapboxgl.Marker({ color: '#FF5252' }).setLngLat(toCoord).setPopup(new mapboxgl.Popup().setText("Tujuan")).addTo(map);
-
       vehicleMarker = new mapboxgl.Marker(el).setLngLat(vehicleCoord).addTo(map);
 
       addRoute(vehicleCoord, fromCoord);
-
       map.fitBounds([fromCoord, toCoord, vehicleCoord], { padding: 60 });
 
       setInterval(() => {
