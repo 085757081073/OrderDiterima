@@ -6,154 +6,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    html, body { margin: 0; padding: 0; height: 100%; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    .error-message {
-      color: red; padding: 20px; text-align: center; background: white;
-      margin: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const from = params.get('from');
+    const to = params.get('to');
+    const vehicle = params.get('vehicle');
+    const orderId = params.get('order_id');
+    const firebaseURL = params.get('firebase_url');
+
+    if (!token || !from || !to || !vehicle || !orderId || !firebaseURL) {
+      alert('Parameter kurang');
+      throw new Error('Parameter kurang');
+    }
+
+    mapboxgl.accessToken = token;
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [0, 0],
+      zoom: 13
+    });
+
+    const parseCoord = (str) => str.split(',').map(Number).reverse(); // [lng, lat]
+
+    const fromCoord = parseCoord(from);
+    const toCoord = parseCoord(to);
+    const vehicleParts = vehicle.split(',');
+    const vehicleCoord = [parseFloat(vehicleParts[1]), parseFloat(vehicleParts[0])];
+    const vehicleType = vehicleParts[2] || 'motor';
+
+    let status = 'menuju_jemput';
+    let vehicleMarker;
+
     const vehicleIcons = {
       motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
       mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
       kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png',
-      bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
-      pickup: 'https://cdn-icons-png.flaticon.com/512/9017/9017605.png',
-      pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png',
       default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const from = urlParams.get('from');
-    const to = urlParams.get('to');
-    const vehicleParam = urlParams.get('vehicle');
-    const orderId = urlParams.get('order_id');
-    const firebaseUrl = urlParams.get('firebase_url');
+    const iconUrl = vehicleIcons[vehicleType] || vehicleIcons.default;
+    const el = document.createElement('div');
+    el.style.backgroundImage = `url(${iconUrl})`;
+    el.style.width = '40px';
+    el.style.height = '40px';
+    el.style.backgroundSize = 'cover';
 
-    if (!token || !from || !to || !orderId || !firebaseUrl) {
-      document.body.innerHTML = `
-        <div class="error-message">
-          <h2>Parameter Kurang</h2>
-          <p>Perlu: token, from, to, vehicle, order_id, firebase_url</p>
-        </div>
-      `;
-      throw new Error("Missing parameters");
+    function addRoute(start, end) {
+      fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(',')};${end.join(',')}?geometries=geojson&access_token=${token}`)
+        .then(res => res.json())
+        .then(data => {
+          const route = data.routes[0].geometry;
+          if (map.getSource('route')) {
+            map.getSource('route').setData({
+              type: 'Feature',
+              geometry: route
+            });
+          } else {
+            map.addSource('route', {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                geometry: route
+              }
+            });
+            map.addLayer({
+              id: 'route',
+              type: 'line',
+              source: 'route',
+              layout: { 'line-cap': 'round', 'line-join': 'round' },
+              paint: { 'line-color': '#00BFFF', 'line-width': 4 }
+            });
+          }
+        });
     }
 
-    function parseCoordinates(str) {
-      const parts = str.split(',').map(Number);
-      if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-        throw new Error("Koordinat tidak valid");
-      }
-      return [parts[1], parts[0]]; // lng, lat
-    }
-
-    let fromCoords = parseCoordinates(from);
-    let toCoords = parseCoordinates(to);
-    let vehicleLat = 0, vehicleLng = 0, vehicleType = 'motor';
-
-    if (vehicleParam) {
-      const vParts = vehicleParam.split(',');
-      vehicleLat = parseFloat(vParts[0]);
-      vehicleLng = parseFloat(vParts[1]);
-      vehicleType = (vParts[2] || 'motor').toLowerCase();
-    }
-
-    let vehicleCoords = [vehicleLng, vehicleLat];
-
-    mapboxgl.accessToken = token;
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: vehicleCoords,
-      zoom: 13
-    });
-
-    let driverMarker;
-
-    map.on('load', async () => {
-      // Marker penjemputan
-      new mapboxgl.Marker({ color: '#4CAF50' })
-        .setLngLat(fromCoords)
-        .setPopup(new mapboxgl.Popup().setHTML("<b>Penjemputan</b>"))
-        .addTo(map);
-
-      // Marker tujuan
-      new mapboxgl.Marker({ color: '#FF5252' })
-        .setLngLat(toCoords)
-        .setPopup(new mapboxgl.Popup().setHTML("<b>Tujuan</b>"))
-        .addTo(map);
-
-      // Marker driver
-      const iconUrl = vehicleIcons[vehicleType] || vehicleIcons.default;
-      const el = document.createElement('div');
-      el.style.backgroundImage = `url(${iconUrl})`;
-      el.style.width = '40px';
-      el.style.height = '40px';
-      el.style.backgroundSize = 'cover';
-      driverMarker = new mapboxgl.Marker(el).setLngLat(vehicleCoords).addTo(map);
-
-      // Gambar rute
-      const resp = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoords.join(',')};${toCoords.join(',')}?geometries=geojson&access_token=${token}`);
-      const data = await resp.json();
-      const route = data.routes[0].geometry;
-      map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route } });
-      map.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#00BFFF', 'line-width': 4, 'line-opacity': 0.8 }
-      });
-
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend(fromCoords);
-      bounds.extend(toCoords);
-      bounds.extend(vehicleCoords);
-      map.fitBounds(bounds, { padding: 50 });
-
-      const jarak = (data.routes[0].distance / 1000).toFixed(2);
-      const durasi = (data.routes[0].duration / 60).toFixed(1);
-      const info = { jarak, durasi };
-      if (window.AppInventor) {
-        window.AppInventor.setWebViewString(JSON.stringify(info));
-      }
-    });
-
-    // Firebase config dinamis
-    firebase.initializeApp({ databaseURL: firebaseUrl });
-    const db = firebase.database();
-
-    function updateDriverLocation(lat, lng) {
-      db.ref(`pesanan/${orderId}`).update({
-        lat_driver: lat,
-        lng_driver: lng
+    function updateFirebase(lat, lng, newStatus = null) {
+      fetch(`${firebaseURL}/pesanan/${orderId}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          lat_driver: lat,
+          lng_driver: lng,
+          ...(newStatus ? { status: newStatus } : {})
+        })
       });
     }
 
-    function startTracking() {
-      navigator.geolocation.watchPosition(
-        pos => {
+    function distance(a, b) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371e3;
+      const φ1 = toRad(a[1]), φ2 = toRad(b[1]);
+      const Δφ = toRad(b[1] - a[1]);
+      const Δλ = toRad(b[0] - a[0]);
+      const a2 = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1 - a2));
+    }
+
+    map.on('load', () => {
+      map.addControl(new mapboxgl.NavigationControl());
+
+      new mapboxgl.Marker({ color: '#4CAF50' }).setLngLat(fromCoord).setPopup(new mapboxgl.Popup().setText("Titik Jemput")).addTo(map);
+      new mapboxgl.Marker({ color: '#FF5252' }).setLngLat(toCoord).setPopup(new mapboxgl.Popup().setText("Tujuan")).addTo(map);
+
+      vehicleMarker = new mapboxgl.Marker(el).setLngLat(vehicleCoord).addTo(map);
+
+      addRoute(vehicleCoord, fromCoord);
+
+      map.fitBounds([fromCoord, toCoord, vehicleCoord], { padding: 60 });
+
+      setInterval(() => {
+        navigator.geolocation.getCurrentPosition(pos => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          driverMarker.setLngLat([lng, lat]);
-          updateDriverLocation(lat, lng);
-        },
-        err => console.error("GPS Error:", err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-      );
-    }
+          const coord = [lng, lat];
 
-    // Mulai tracking setelah 3 detik
-    setTimeout(startTracking, 3000);
+          vehicleMarker.setLngLat(coord);
+          updateFirebase(lat, lng);
+
+          if (status === 'menuju_jemput' && distance(coord, fromCoord) < 50) {
+            status = 'menuju_tujuan';
+            updateFirebase(lat, lng, 'tiba_di_jemput');
+            addRoute(coord, toCoord);
+          } else if (status === 'menuju_tujuan' && distance(coord, toCoord) < 50) {
+            status = 'selesai';
+            updateFirebase(lat, lng, 'selesai');
+            alert("Perjalanan selesai");
+          }
+        });
+      }, 5000);
+    });
   </script>
 </body>
 </html>
