@@ -14,6 +14,8 @@
 <body>
   <div id="map"></div>
   <script>
+    console.log('Memulai aplikasi peta...');
+    
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const from = params.get('from');
@@ -23,29 +25,56 @@
     const firebaseURL = params.get('firebase_url');
 
     if (!token || !from || !to || !vehicle || !orderId || !firebaseURL) {
-      alert('Parameter kurang');
-      throw new Error('Parameter kurang');
+      const errorMsg = 'Parameter kurang! Pastikan semua parameter (token, from, to, vehicle, order_id, firebase_url) tersedia.';
+      alert(errorMsg);
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     mapboxgl.accessToken = token;
+    console.log('Token Mapbox diterima');
 
     const parseCoord = (str) => {
-      const [lat, lng] = str.split(',').map(Number);
-      return [lng, lat];
+      const coords = str.split(',').map(Number);
+      if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+        throw new Error(`Format koordinat tidak valid: ${str}`);
+      }
+      return [coords[1], coords[0]]; // [lng, lat]
     };
 
-    const fromCoord = parseCoord(from);
-    const toCoord = parseCoord(to);
-    const vehicleParts = vehicle.split(',');
-    const vehicleCoord = [parseFloat(vehicleParts[1]), parseFloat(vehicleParts[0])];
-    const vehicleType = vehicleParts[2] || 'motor';
+    let fromCoord, toCoord, vehicleCoord;
+    try {
+      fromCoord = parseCoord(from);
+      toCoord = parseCoord(to);
+      
+      const vehicleParts = vehicle.split(',');
+      if (vehicleParts.length < 2) {
+        throw new Error('Format parameter vehicle tidak valid');
+      }
+      vehicleCoord = [parseFloat(vehicleParts[1]), parseFloat(vehicleParts[0])];
+      const vehicleType = vehicleParts[2] || 'motor';
+      
+      console.log('Koordinat:', {
+        from: fromCoord,
+        to: toCoord,
+        vehicle: vehicleCoord,
+        type: vehicleType
+      });
+    } catch (e) {
+      const errorMsg = 'Error parsing coordinates: ' + e.message;
+      alert(errorMsg);
+      console.error(errorMsg);
+      throw e;
+    }
 
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',
       center: vehicleCoord,
-      zoom: 9 // Zoom awal lebih jauh
+      zoom: 9
     });
+
+    console.log('Peta berhasil diinisialisasi');
 
     const vehicleIcons = {
       motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
@@ -57,6 +86,7 @@
       default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
     };
 
+    const vehicleType = vehicle.split(',')[2] || 'motor';
     const el = document.createElement('div');
     el.style.backgroundImage = `url(${vehicleIcons[vehicleType] || vehicleIcons.default})`;
     el.style.width = '40px';
@@ -65,6 +95,7 @@
 
     let vehicleMarker;
     let status = 'menuju_jemput';
+    let routeAdded = false;
 
     const distance = (coord1, coord2) => {
       const [lng1, lat1] = coord1;
@@ -83,18 +114,23 @@
       return R * c;
     };
 
-    function addRoute(start, end) {
+    function addRoute(start, end, attempt = 1) {
+      console.log(`Mencoba menambahkan rute (percobaan ${attempt}) dari ${start} ke ${end}`);
+      
       const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${token}`;
       
       fetch(url)
         .then(res => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
           return res.json();
         })
         .then(data => {
+          console.log('Respon dari Mapbox Directions API:', data);
+          
           if (!data.routes || data.routes.length === 0) {
-            console.error("No routes found", data);
-            throw new Error("No routes found");
+            throw new Error("Tidak ada rute yang ditemukan");
           }
           
           const route = data.routes[0].geometry;
@@ -123,56 +159,80 @@
               },
               paint: {
                 'line-color': '#00BFFF',
-                'line-width': 4
+                'line-width': 4,
+                'line-opacity': 0.8
               }
             });
           }
+          
+          routeAdded = true;
+          console.log('Rute berhasil ditambahkan');
+          
+          // Fit bounds ke rute setelah ditambahkan
+          const coordinates = route.coordinates;
+          const bounds = coordinates.reduce((bounds, coord) => {
+            return bounds.extend(coord);
+          }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+          
+          map.fitBounds(bounds, {
+            padding: 100,
+            maxZoom: 15
+          });
         })
         .catch(err => {
-          console.error("Error fetching route:", err);
-          setTimeout(() => addRoute(start, end), 2000);
+          console.error("Error saat mengambil rute:", err);
+          if (attempt < 3) {
+            setTimeout(() => addRoute(start, end, attempt + 1), 2000 * attempt);
+          } else {
+            alert("Gagal mendapatkan rute setelah 3 percobaan. Pastikan koneksi internet stabil dan koordinat valid.");
+          }
         });
     }
 
     function updateFirebase(lat, lng, newStatus = null) {
-      fetch(`${firebaseURL}/pesanan/${orderId}.json`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          lat_driver: lat,
-          lng_driver: lng,
-          ...(newStatus ? { status: newStatus } : {})
-        })
-      }).catch(err => console.error("Firebase update error:", err));
-    }
-
-    function animateMapZoom(startZoom, endZoom, duration) {
-      const startTime = performance.now();
+      const updateData = {
+        lat_driver: lat,
+        lng_driver: lng,
+        updated_at: new Date().toISOString()
+      };
       
-      function animate(time) {
-        const elapsed = time - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const currentZoom = startZoom + (endZoom - startZoom) * progress;
-        
-        map.setZoom(currentZoom);
-        
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        }
+      if (newStatus) {
+        updateData.status = newStatus;
       }
       
-      requestAnimationFrame(animate);
+      console.log('Mengupdate Firebase:', updateData);
+      
+      fetch(`${firebaseURL}/pesanan/${orderId}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify(updateData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Firebase update failed');
+        }
+        return response.json();
+      })
+      .catch(err => {
+        console.error("Error saat mengupdate Firebase:", err);
+      });
     }
 
     map.on('load', () => {
+      console.log('Peta selesai dimuat');
+      
       map.addControl(new mapboxgl.NavigationControl());
+      map.addControl(new mapboxgl.ScaleControl());
 
       // Tambahkan marker lokasi jemput dan tujuan
-      const pickupMarker = new mapboxgl.Marker({ color: 'green' })
+      new mapboxgl.Marker({ color: '#10b981' })
         .setLngLat(fromCoord)
-        .setPopup(new mapboxgl.Popup().setText("Lokasi Jemput"))
+        .setPopup(new mapboxgl.Popup().setText("Lokasi Penjemputan"))
         .addTo(map);
       
-      const destinationMarker = new mapboxgl.Marker({ color: 'red' })
+      new mapboxgl.Marker({ color: '#ef4444' })
         .setLngLat(toCoord)
         .setPopup(new mapboxgl.Popup().setText("Lokasi Tujuan"))
         .addTo(map);
@@ -180,73 +240,98 @@
       // Tambahkan marker kendaraan
       vehicleMarker = new mapboxgl.Marker(el)
         .setLngLat(vehicleCoord)
+        .setPopup(new mapboxgl.Popup().setText("Posisi Anda Sekarang"))
         .addTo(map);
 
       // 1. Tampilkan semua marker di viewport awal
-      const bounds = new mapboxgl.LngLatBounds()
+      const allBounds = new mapboxgl.LngLatBounds()
         .extend(fromCoord)
         .extend(toCoord)
         .extend(vehicleCoord);
       
-      // 2. Set zoom awal yang lebih luas
-      map.fitBounds(bounds, { 
-        padding: {top: 100, bottom: 100, left: 100, right: 100},
-        maxZoom: 9
+      console.log('Menampilkan semua marker di viewport awal');
+      map.fitBounds(allBounds, { 
+        padding: 100,
+        maxZoom: 9,
+        duration: 0
       });
 
-      // 3. Setelah 1 detik, zoom perlahan ke area kendaraan dan lokasi jemput
+      // 2. Setelah 1 detik, zoom ke area kendaraan dan lokasi jemput
       setTimeout(() => {
-        // Buat bounds baru hanya untuk vehicle dan pickup point
+        console.log('Memulai animasi zoom ke area operasional');
+        
         const focusBounds = new mapboxgl.LngLatBounds()
           .extend(vehicleCoord)
           .extend(fromCoord);
         
         map.fitBounds(focusBounds, {
-          padding: {top: 200, bottom: 200, left: 200, right: 200},
+          padding: 200,
           maxZoom: 15,
-          duration: 3000, // Animasi selama 3 detik
+          duration: 3000,
           essential: true
         });
         
-        // Setelah selesai zoom, tambahkan rute
+        // 3. Setelah animasi selesai, tambahkan rute
         setTimeout(() => {
+          console.log('Menambahkan rute dari kendaraan ke lokasi jemput');
           addRoute(vehicleCoord, fromCoord);
         }, 3000);
       }, 1000);
 
       // Update posisi secara berkala
-      setInterval(() => {
+      const updateInterval = setInterval(() => {
         navigator.geolocation.getCurrentPosition(
           pos => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             const currentCoord = [lng, lat];
+            const accuracy = pos.coords.accuracy;
 
+            console.log('Posisi terkini:', { lat, lng, accuracy });
+            
             vehicleMarker.setLngLat(currentCoord);
             updateFirebase(lat, lng);
 
             if (status === 'menuju_jemput') {
               const distToPickup = distance(currentCoord, fromCoord);
+              console.log(`Jarak ke lokasi jemput: ${distToPickup.toFixed(1)} meter`);
+              
               if (distToPickup < 100) {
                 status = 'menuju_tujuan';
+                console.log('Tiba di lokasi jemput, mengubah rute ke tujuan');
                 updateFirebase(lat, lng, 'tiba_di_jemput');
                 addRoute(currentCoord, toCoord);
               }
             } else if (status === 'menuju_tujuan') {
               const distToDestination = distance(currentCoord, toCoord);
+              console.log(`Jarak ke lokasi tujuan: ${distToDestination.toFixed(1)} meter`);
+              
               if (distToDestination < 100) {
                 status = 'selesai';
+                console.log('Tiba di lokasi tujuan, perjalanan selesai');
                 updateFirebase(lat, lng, 'selesai');
-                alert("Perjalanan selesai.");
+                alert("Perjalanan selesai. Anda telah tiba di lokasi tujuan.");
+                clearInterval(updateInterval);
               }
             }
           },
           err => {
-            console.error("Geolocation error:", err);
+            console.error("Error geolokasi:", err);
+            alert(`Error mendapatkan lokasi: ${err.message}`);
           },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          { 
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
         );
       }, 5000);
+    });
+
+    // Handle map errors
+    map.on('error', (e) => {
+      console.error('Error peta:', e.error);
+      alert(`Error peta: ${e.error.message}`);
     });
   </script>
 </body>
