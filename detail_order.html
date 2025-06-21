@@ -29,7 +29,6 @@
 
     mapboxgl.accessToken = token;
 
-    // Fungsi untuk memastikan format koordinat [lng, lat]
     const parseCoord = (str) => {
       const [lat, lng] = str.split(',').map(Number);
       return [lng, lat];
@@ -45,18 +44,18 @@
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',
       center: vehicleCoord,
-      zoom: 15
+      zoom: 9 // Zoom awal lebih jauh
     });
 
     const vehicleIcons = {
-  motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-  mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
-  kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png',
-  bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
-  pickup: 'https://cdn-icons-png.flaticon.com/512/9017/9017605.png',
-  pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png',
-  default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
-};
+      motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+      mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
+      kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png',
+      bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
+      pickup: 'https://cdn-icons-png.flaticon.com/512/9017/9017605.png',
+      pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png',
+      default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
+    };
 
     const el = document.createElement('div');
     el.style.backgroundImage = `url(${vehicleIcons[vehicleType] || vehicleIcons.default})`;
@@ -67,11 +66,10 @@
     let vehicleMarker;
     let status = 'menuju_jemput';
 
-    // Fungsi menghitung jarak dalam meter
     const distance = (coord1, coord2) => {
       const [lng1, lat1] = coord1;
       const [lng2, lat2] = coord2;
-      const R = 6371e3; // Earth radius in meters
+      const R = 6371e3;
       const φ1 = lat1 * Math.PI/180;
       const φ2 = lat2 * Math.PI/180;
       const Δφ = (lat2-lat1) * Math.PI/180;
@@ -132,7 +130,6 @@
         })
         .catch(err => {
           console.error("Error fetching route:", err);
-          // Coba alternatif jika rute driving gagal
           setTimeout(() => addRoute(start, end), 2000);
         });
     }
@@ -148,16 +145,34 @@
       }).catch(err => console.error("Firebase update error:", err));
     }
 
+    function animateMapZoom(startZoom, endZoom, duration) {
+      const startTime = performance.now();
+      
+      function animate(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentZoom = startZoom + (endZoom - startZoom) * progress;
+        
+        map.setZoom(currentZoom);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      }
+      
+      requestAnimationFrame(animate);
+    }
+
     map.on('load', () => {
       map.addControl(new mapboxgl.NavigationControl());
 
       // Tambahkan marker lokasi jemput dan tujuan
-      new mapboxgl.Marker({ color: 'green' })
+      const pickupMarker = new mapboxgl.Marker({ color: 'green' })
         .setLngLat(fromCoord)
         .setPopup(new mapboxgl.Popup().setText("Lokasi Jemput"))
         .addTo(map);
       
-      new mapboxgl.Marker({ color: 'red' })
+      const destinationMarker = new mapboxgl.Marker({ color: 'red' })
         .setLngLat(toCoord)
         .setPopup(new mapboxgl.Popup().setText("Lokasi Tujuan"))
         .addTo(map);
@@ -167,15 +182,37 @@
         .setLngLat(vehicleCoord)
         .addTo(map);
 
-      // Sesuaikan viewport
+      // 1. Tampilkan semua marker di viewport awal
       const bounds = new mapboxgl.LngLatBounds()
         .extend(fromCoord)
         .extend(toCoord)
         .extend(vehicleCoord);
-      map.fitBounds(bounds, { padding: 100 });
+      
+      // 2. Set zoom awal yang lebih luas
+      map.fitBounds(bounds, { 
+        padding: {top: 100, bottom: 100, left: 100, right: 100},
+        maxZoom: 9
+      });
 
-      // Tambahkan rute awal
-      addRoute(vehicleCoord, fromCoord);
+      // 3. Setelah 1 detik, zoom perlahan ke area kendaraan dan lokasi jemput
+      setTimeout(() => {
+        // Buat bounds baru hanya untuk vehicle dan pickup point
+        const focusBounds = new mapboxgl.LngLatBounds()
+          .extend(vehicleCoord)
+          .extend(fromCoord);
+        
+        map.fitBounds(focusBounds, {
+          padding: {top: 200, bottom: 200, left: 200, right: 200},
+          maxZoom: 15,
+          duration: 3000, // Animasi selama 3 detik
+          essential: true
+        });
+        
+        // Setelah selesai zoom, tambahkan rute
+        setTimeout(() => {
+          addRoute(vehicleCoord, fromCoord);
+        }, 3000);
+      }, 1000);
 
       // Update posisi secara berkala
       setInterval(() => {
@@ -190,14 +227,14 @@
 
             if (status === 'menuju_jemput') {
               const distToPickup = distance(currentCoord, fromCoord);
-              if (distToPickup < 100) { // 100 meter
+              if (distToPickup < 100) {
                 status = 'menuju_tujuan';
                 updateFirebase(lat, lng, 'tiba_di_jemput');
                 addRoute(currentCoord, toCoord);
               }
             } else if (status === 'menuju_tujuan') {
               const distToDestination = distance(currentCoord, toCoord);
-              if (distToDestination < 100) { // 100 meter
+              if (distToDestination < 100) {
                 status = 'selesai';
                 updateFirebase(lat, lng, 'selesai');
                 alert("Perjalanan selesai.");
