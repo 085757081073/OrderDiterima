@@ -9,7 +9,6 @@
   <style>
     html, body { margin: 0; padding: 0; height: 100%; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    .mapboxgl-map { transition: all 0.5s ease-out; }
     #status-info {
       position: absolute;
       top: 10px;
@@ -27,9 +26,6 @@
   <div id="status-info">Memuat peta...</div>
   
   <script>
-    // Debugging
-    console.log('Aplikasi dimulai');
-    
     // Parameter URL
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -41,15 +37,12 @@
 
     // Validasi parameter
     if (!token || !from || !to || !vehicle || !orderId || !firebaseURL) {
-      const errorMsg = 'Parameter tidak lengkap! Pastikan semua parameter tersedia.';
-      document.getElementById('status-info').textContent = errorMsg;
-      alert(errorMsg);
-      throw new Error(errorMsg);
+      document.getElementById('status-info').textContent = 'Parameter tidak lengkap!';
+      throw new Error('Parameter tidak lengkap');
     }
 
     // Inisialisasi Mapbox
     mapboxgl.accessToken = token;
-    console.log('Token Mapbox valid');
 
     // Fungsi parsing koordinat
     const parseCoord = (str) => {
@@ -65,25 +58,10 @@
     try {
       fromCoord = parseCoord(from);
       toCoord = parseCoord(to);
-      
       const vehicleParts = vehicle.split(',');
-      if (vehicleParts.length < 2) {
-        throw new Error('Format parameter vehicle tidak valid');
-      }
       vehicleCoord = [parseFloat(vehicleParts[1]), parseFloat(vehicleParts[0])];
-      const vehicleType = vehicleParts[2] || 'motor';
-      
-      console.log('Koordinat valid:', {
-        from: fromCoord,
-        to: toCoord,
-        vehicle: vehicleCoord,
-        type: vehicleType
-      });
     } catch (e) {
-      const errorMsg = 'Error parsing coordinates: ' + e.message;
-      document.getElementById('status-info').textContent = errorMsg;
-      alert(errorMsg);
-      console.error(errorMsg);
+      document.getElementById('status-info').textContent = 'Error parsing koordinat';
       throw e;
     }
 
@@ -92,150 +70,42 @@
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',
       center: vehicleCoord,
-      zoom: 9
+      zoom: 12
     });
-
-    // Ikon Kendaraan
-    const vehicleIcons = {
-      motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
-      mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
-      kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png',
-      bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
-      pickup: 'https://cdn-icons-png.flaticon.com/512/9017/9017605.png',
-      pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png',
-      default: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png'
-    };
-
-    const vehicleType = vehicle.split(',')[2] || 'motor';
-    const el = document.createElement('div');
-    el.style.backgroundImage = `url(${vehicleIcons[vehicleType] || vehicleIcons.default})`;
-    el.style.width = '40px';
-    el.style.height = '40px';
-    el.style.backgroundSize = 'cover';
 
     // Variabel state
     let vehicleMarker;
     let status = 'menuju_jemput';
     let gpsWatchId = null;
-    let routeAdded = false;
-
-    // Fungsi utilitas
-    const distance = (coord1, coord2) => {
-      const [lng1, lat1] = coord1;
-      const [lng2, lat2] = coord2;
-      const R = 6371e3;
-      const φ1 = lat1 * Math.PI/180;
-      const φ2 = lat2 * Math.PI/180;
-      const Δφ = (lat2-lat1) * Math.PI/180;
-      const Δλ = (lng2-lng1) * Math.PI/180;
-
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-      return R * c;
-    };
-
-    // Fungsi animasi kamera
-    function animateCamera() {
-      console.log('Memulai animasi kamera...');
-      document.getElementById('status-info').textContent = "Memulai navigasi...";
-      
-      // Tahap 1: Tampilkan semua marker
-      const allBounds = new mapboxgl.LngLatBounds()
-        .extend(fromCoord)
-        .extend(toCoord)
-        .extend(vehicleCoord);
-      
-      map.fitBounds(allBounds, { 
-        padding: 100,
-        duration: 0
-      });
-
-      // Tahap 2: Zoom ke area operasional
-      setTimeout(() => {
-        const focusCenter = [
-          (vehicleCoord[0] + fromCoord[0]) / 2,
-          (vehicleCoord[1] + fromCoord[1]) / 2
-        ];
-        
-        map.flyTo({
-          center: focusCenter,
-          zoom: 14,
-          speed: 0.6,
-          curve: 1.2,
-          essential: true
-        });
-        
-        console.log('Animasi kamera selesai');
-      }, 1000);
-    }
 
     // Fungsi tambah rute
-    function addRoute(start, end, attempt = 1) {
-      console.log(`Menambahkan rute (percobaan ${attempt})...`);
-      
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&overview=full&access_token=${token}`;
+    function addRoute(start, end) {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${token}`;
       
       fetch(url)
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
-          if (!data.routes || data.routes.length === 0) {
-            throw new Error("Tidak ada rute yang ditemukan");
-          }
-          
-          const route = data.routes[0].geometry;
-          
-          if (map.getSource('route')) {
-            map.getSource('route').setData({
-              type: 'Feature',
-              geometry: route
-            });
-          } else {
-            map.addSource('route', {
-              type: 'geojson',
-              data: {
-                type: 'Feature',
-                geometry: route
-              }
-            });
+          if (data.routes && data.routes.length) {
+            const route = data.routes[0].geometry;
             
-            map.addLayer({
-              id: 'route',
-              type: 'line',
-              source: 'route',
-              layout: {
-                'line-cap': 'round',
-                'line-join': 'round'
-              },
-              paint: {
-                'line-color': '#00BFFF',
-                'line-width': 4,
-                'line-opacity': 0.8
-              }
-            });
+            if (map.getSource('route')) {
+              map.getSource('route').setData({ type: 'Feature', geometry: route });
+            } else {
+              map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route } });
+              map.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                paint: { 'line-color': '#00BFFF', 'line-width': 4 }
+              });
+            }
+            document.getElementById('status-info').textContent = "Rute ditemukan!";
           }
-          
-          routeAdded = true;
-          document.getElementById('status-info').textContent = "Rute ditemukan!";
-          console.log('Rute berhasil ditambahkan');
         })
-        .catch(err => {
-          console.error("Error saat mengambil rute:", err);
-          if (attempt < 3) {
-            setTimeout(() => addRoute(start, end, attempt + 1), 2000 * attempt);
-          } else {
-            document.getElementById('status-info').textContent = "Gagal memuat rute";
-            alert("Gagal mendapatkan rute setelah 3 percobaan. Cek koneksi internet Anda.");
-          }
-        });
+        .catch(err => console.error("Error rute:", err));
     }
 
-    // Fungsi update Firebase
+    // Fungsi update Firebase (tanpa alert)
     function updateFirebase(lat, lng, newStatus = null) {
       const updateData = {
         lat_driver: lat,
@@ -250,120 +120,96 @@
       
       fetch(`${firebaseURL}/pesanan/${orderId}.json`, {
         method: 'PATCH',
-        body: JSON.stringify(updateData),
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: JSON.stringify(updateData)
       }).catch(err => console.error("Error Firebase:", err));
     }
 
     // Fungsi tracking GPS
     function startTracking() {
-      console.log('Memulai tracking GPS...');
-      
-      if (gpsWatchId) {
-        navigator.geolocation.clearWatch(gpsWatchId);
-      }
-
-      const geoOptions = {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
-      };
+      if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
 
       gpsWatchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const currentCoord = [lng, lat];
-          const accuracy = pos.coords.accuracy;
 
-          console.log('Posisi diperbarui:', { lat, lng, accuracy });
-          
           vehicleMarker.setLngLat(currentCoord);
           updateFirebase(lat, lng);
 
           if (status === 'menuju_jemput') {
-            const distToPickup = distance(currentCoord, fromCoord);
-            console.log(`Jarak ke lokasi jemput: ${distToPickup.toFixed(1)} meter`);
-            
-            if (distToPickup < 100) {
+            if (distance(currentCoord, fromCoord) < 100) {
               status = 'menuju_tujuan';
               updateFirebase(lat, lng, 'tiba_di_jemput');
               addRoute(currentCoord, toCoord);
             }
           } else if (status === 'menuju_tujuan') {
-            const distToDestination = distance(currentCoord, toCoord);
-            console.log(`Jarak ke lokasi tujuan: ${distToDestination.toFixed(1)} meter`);
-            
-            if (distToDestination < 100) {
+            if (distance(currentCoord, toCoord) < 100) {
               status = 'selesai';
-              updateFirebase(lat, lng, 'selesai');
-              document.getElementById('status-info').textContent = "Perjalanan selesai!";
-              alert("Perjalanan selesai. Anda telah tiba di lokasi tujuan.");
-              if (gpsWatchId) {
-                navigator.geolocation.clearWatch(gpsWatchId);
-              }
+              updateFirebase(lat, lng, 'selesai'); // Hanya update Firebase tanpa alert
+              if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
             }
           }
         },
         (err) => {
-          console.error('Error GPS:', err);
           document.getElementById('status-info').textContent = `Error GPS: ${err.message}`;
           setTimeout(startTracking, 5000);
         },
-        geoOptions
+        { enableHighAccuracy: true, timeout: 15000 }
       );
     }
 
-    // Event listener saat peta siap
+    // Inisialisasi peta
     map.on('load', () => {
-      console.log('Peta siap digunakan');
-      document.getElementById('status-info').textContent = "Memuat rute...";
-      
       map.addControl(new mapboxgl.NavigationControl());
-      map.addControl(new mapboxgl.ScaleControl());
 
       // Tambahkan marker
-      new mapboxgl.Marker({ color: '#10b981' })
+      new mapboxgl.Marker({ color: 'green' })
         .setLngLat(fromCoord)
         .setPopup(new mapboxgl.Popup().setText("Lokasi Penjemputan"))
         .addTo(map);
       
-      new mapboxgl.Marker({ color: '#ef4444' })
+      new mapboxgl.Marker({ color: 'red' })
         .setLngLat(toCoord)
         .setPopup(new mapboxgl.Popup().setText("Lokasi Tujuan"))
         .addTo(map);
 
-      vehicleMarker = new mapboxgl.Marker(el)
+      vehicleMarker = new mapboxgl.Marker()
         .setLngLat(vehicleCoord)
-        .setPopup(new mapboxgl.Popup().setText("Posisi Anda"))
         .addTo(map);
 
-      // 1. Jalankan animasi kamera
-      animateCamera();
+      // Animasi kamera
+      const bounds = new mapboxgl.LngLatBounds()
+        .extend(fromCoord)
+        .extend(toCoord)
+        .extend(vehicleCoord);
+      
+      map.fitBounds(bounds, { padding: 100, duration: 1000 });
 
-      // 2. Setelah animasi, tambahkan rute
+      // Tambahkan rute dan mulai tracking
       setTimeout(() => {
         addRoute(vehicleCoord, fromCoord);
-      }, 3000);
-
-      // 3. Mulai tracking GPS
-      setTimeout(() => {
-        if (navigator.geolocation) {
-          startTracking();
-        } else {
-          document.getElementById('status-info').textContent = "Browser tidak mendukung GPS";
-          alert("Browser Anda tidak mendukung geolokasi!");
-        }
-      }, 4000);
+        startTracking();
+      }, 1500);
     });
 
-    // Handle error peta
-    map.on('error', (e) => {
-      console.error('Error peta:', e.error);
-      document.getElementById('status-info').textContent = `Error peta: ${e.error.message}`;
-    });
+    // Fungsi utilitas
+    function distance(coord1, coord2) {
+      const [lng1, lat1] = coord1;
+      const [lng2, lat2] = coord2;
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI/180;
+      const φ2 = lat2 * Math.PI/180;
+      const Δφ = (lat2-lat1) * Math.PI/180;
+      const Δλ = (lng2-lng1) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      return R * c;
+    }
   </script>
 </body>
 </html>
