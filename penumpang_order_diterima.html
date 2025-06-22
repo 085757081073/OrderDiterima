@@ -469,9 +469,16 @@
             margin-top: 5px;
             display: inline-block;
         }
+        
+        .webstring-frame {
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Iframe tersembunyi untuk komunikasi webstring -->
+    <iframe id="webstring-frame" class="webstring-frame"></iframe>
+    
     <div class="container">
         <header>
             <h1><i class="fas fa-map-marker-alt"></i> Lacak Driver</h1>
@@ -635,6 +642,22 @@
         let pickupLocation = null;
         let isMonitoring = false;
         
+        // Fungsi untuk mengirim perintah ke aplikasi native melalui webstring
+        function sendWebstringCommand(command) {
+            try {
+                // Pendekatan 1: Menggunakan iframe (lebih kompatibel)
+                const frame = document.getElementById('webstring-frame');
+                frame.src = command;
+                
+                // Pendekatan 2: Menggunakan window.location (untuk beberapa browser)
+                setTimeout(() => {
+                    window.location = command;
+                }, 100);
+            } catch (e) {
+                console.log("Webstring command sent:", command);
+            }
+        }
+
         // Fungsi untuk menginisialisasi peta
         function initMap() {
             map = new mapboxgl.Map({
@@ -886,12 +909,12 @@
         // Event listener untuk tombol
         document.getElementById('btn-call').addEventListener('click', () => {
             // Mengirim respon ke webstring
-            window.location.href = 'webstring://call_driver';
+            sendWebstringCommand('webstring://call_driver');
         });
         
         document.getElementById('btn-cancel').addEventListener('click', () => {
             // Mengirim respon ke webstring tanpa konfirmasi
-            window.location.href = 'webstring://cancel_order';
+            sendWebstringCommand('webstring://cancel_order');
         });
         
         // Inisialisasi peta saat halaman dimuat
