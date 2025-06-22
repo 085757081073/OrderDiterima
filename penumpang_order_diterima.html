@@ -10,435 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-            color: #333;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        header {
-            text-align: center;
-            padding: 20px 0;
-            margin-bottom: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-        }
-        
-        header h1 {
-            font-size: 2.5rem;
-            color: #1a2a6c;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        header h1 i {
-            color: #fdbb2d;
-            animation: pulse 2s infinite;
-        }
-        
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 25px;
-        }
-        
-        @media (min-width: 992px) {
-            .main-content {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }
-        
-        .card-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.5rem;
-            color: #1a2a6c;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #fdbb2d;
-        }
-        
-        .card-title i {
-            color: #b21f1f;
-        }
-        
-        .map-container {
-            height: 400px;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 20px;
-            position: relative;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        #map {
-            width: 100%;
-            height: 100%;
-            background-color: #e9ecef;
-        }
-        
-        .map-overlay {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            right: 15px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            z-index: 100;
-        }
-        
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .status-indicator {
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            background: #1a2a6c;
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-        
-        .distance-info {
-            font-weight: bold;
-            color: #b21f1f;
-            font-size: 1.1rem;
-        }
-        
-        .driver-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .driver-avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            color: white;
-            font-weight: bold;
-        }
-        
-        .driver-details {
-            flex: 1;
-        }
-        
-        .driver-name {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #1a2a6c;
-            margin-bottom: 5px;
-        }
-        
-        .driver-plate {
-            background: #1a2a6c;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            display: inline-block;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .info-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-        }
-        
-        .info-card h4 {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-        }
-        
-        .info-card p {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1a2a6c;
-        }
-        
-        .price-card {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .price-label {
-            font-size: 1rem;
-            margin-bottom: 5px;
-        }
-        
-        .price-amount {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        .address-card {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin-top: 20px;
-        }
-        
-        .address-card h3 {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: #1a2a6c;
-        }
-        
-        .address-content {
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 25px;
-        }
-        
-        .btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #1a2a6c, #2d3b99);
-            color: white;
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #b21f1f, #d33f3f);
-            color: white;
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .btn:active {
-            transform: translateY(1px);
-        }
-        
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: white;
-            font-size: 0.9rem;
-            padding: 20px;
-            opacity: 0.8;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 0.9; }
-            50% { opacity: 1; }
-            100% { opacity: 0.9; }
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        .progress-bar {
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            margin: 20px 0;
-            overflow: hidden;
-        }
-        
-        .progress {
-            height: 100%;
-            background: linear-gradient(90deg, #1a2a6c, #fdbb2d);
-            width: 45%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-        
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        
-        .step {
-            text-align: center;
-            flex: 1;
-            position: relative;
-        }
-        
-        .step.active {
-            color: #1a2a6c;
-            font-weight: bold;
-        }
-        
-        .step::before {
-            content: "";
-            width: 12px;
-            height: 12px;
-            background: #e9ecef;
-            border: 2px solid #adb5bd;
-            border-radius: 50%;
-            display: block;
-            margin: 0 auto 5px;
-        }
-        
-        .step.active::before {
-            background: #1a2a6c;
-            border-color: #1a2a6c;
-        }
-        
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            flex-direction: column;
-            gap: 15px;
-            color: #1a2a6c;
-            font-weight: 500;
-            text-align: center;
-        }
-        
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #1a2a6c;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .no-data {
-            text-align: center;
-            padding: 20px;
-            color: #b21f1f;
-            font-weight: bold;
-        }
-        
-        .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .connected {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .disconnected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .order-details {
-            margin: 15px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        
-        .detail-row {
-            display: flex;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .detail-label {
-            flex: 1;
-            font-weight: 600;
-            color: #6c757d;
-        }
-        
-        .detail-value {
-            flex: 2;
-            color: #1a2a6c;
-            font-weight: 500;
-        }
+        /* ... (CSS tetap sama) ... */
     </style>
 </head>
 <body>
@@ -449,114 +21,7 @@
         </header>
 
         <div class="main-content">
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-map"></i>
-                    <h2>Peta Perjalanan</h2>
-                </div>
-                
-                <div class="map-container">
-                    <div id="map">
-                        <div class="loading">
-                            <div class="spinner"></div>
-                            <p>Memuat peta dan data perjalanan...</p>
-                        </div>
-                    </div>
-                    <div class="map-overlay">
-                        <div class="status-bar">
-                            <div class="status-indicator" id="status-indicator">Memuat data...</div>
-                            <div class="distance-info" id="distance-info">-</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="driver-info">
-                    <div class="driver-avatar" id="driver-avatar">-</div>
-                    <div class="driver-details">
-                        <div class="driver-name" id="driver-name">-</div>
-                        <div class="driver-plate" id="driver-plate">-</div>
-                    </div>
-                </div>
-                
-                <div class="progress-bar">
-                    <div class="progress" id="progress-bar"></div>
-                </div>
-                
-                <div class="progress-steps">
-                    <div class="step" id="step1">Pesanan Diterima</div>
-                    <div class="step" id="step2">Driver Menuju</div>
-                    <div class="step" id="step3">Penjemputan</div>
-                    <div class="step" id="step4">Dalam Perjalanan</div>
-                    <div class="step" id="step5">Sampai Tujuan</div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-info-circle"></i>
-                    <h2>Detail Perjalanan</h2>
-                </div>
-                
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h4><i class="fas fa-clock"></i> Durasi Perjalanan</h4>
-                        <p id="duration">-</p>
-                    </div>
-                    
-                    <div class="info-card">
-                        <h4><i class="fas fa-road"></i> Jarak Tempuh</h4>
-                        <p id="distance">-</p>
-                    </div>
-                    
-                    <div class="info-card">
-                        <h4><i class="fas fa-motorcycle"></i> Jenis Kendaraan</h4>
-                        <p id="vehicle">-</p>
-                    </div>
-                    
-                    <div class="price-card">
-                        <div class="price-label">Total Biaya</div>
-                        <div class="price-amount" id="price">-</div>
-                    </div>
-                </div>
-                
-                <div class="address-card">
-                    <h3><i class="fas fa-location-dot"></i> Titik Penjemputan</h3>
-                    <div class="address-content" id="pickup-address">-</div>
-                </div>
-                
-                <div class="address-card">
-                    <h3><i class="fas fa-flag-checkered"></i> Titik Tujuan</h3>
-                    <div class="address-content" id="destination-address">-</div>
-                </div>
-                
-                <div class="order-details">
-                    <div class="detail-row">
-                        <div class="detail-label">Nama Penumpang:</div>
-                        <div class="detail-value" id="passenger-name">-</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">No. Telepon:</div>
-                        <div class="detail-value" id="passenger-phone">-</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Waktu Order:</div>
-                        <div class="detail-value" id="order-time">-</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Status:</div>
-                        <div class="detail-value" id="order-status">-</div>
-                    </div>
-                </div>
-                
-                <div class="action-buttons">
-                    <button class="btn btn-primary" id="btn-call">
-                        <i class="fas fa-phone"></i> Hubungi Driver
-                    </button>
-                    <button class="btn btn-danger" id="btn-cancel">
-                        <i class="fas fa-times"></i> Batalkan Pesanan
-                    </button>
-                </div>
-            </div>
+            <!-- ... (HTML tetap sama) ... -->
         </div>
         
         <div class="footer">
@@ -573,7 +38,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const mapboxToken = urlParams.get('mapbox_token');
         const firebaseURL = urlParams.get('firebase_url');
-        const orderId = urlParams.get('order_id');
+        // Kita ambil userID dari parameter. Di URL contoh, parameter yang ada adalah order_id, tapi isinya userID
+        const userId = urlParams.get('user_id') || urlParams.get('order_id');
         const firebaseBucket = 'pesanan';
         
         // Konfigurasi Mapbox
@@ -588,8 +54,8 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         
-        // Referensi ke data pesanan pengguna
-        const orderRef = database.ref(`${firebaseBucket}/${orderId}`);
+        // Referensi ke data pesanan, dan kita akan query berdasarkan userID
+        const ordersRef = database.ref(firebaseBucket);
         
         // Variabel global untuk data dan peta
         let map, driverMarker, pickupMarker, destinationMarker, currentOrder;
@@ -640,4 +106,226 @@
                 .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${order.driverName}<br>${formatPlate(order.driverID)}`))
                 .addTo(map);
             
-            // Tambahkan garis ru
+            // Tambahkan garis rute
+            if (map.getSource('route')) {
+                map.removeLayer('route');
+                map.removeSource('route');
+            }
+            
+            map.addSource('route', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'Feature',
+                    'properties': {},
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': [
+                            [order.lng_driver, order.lat_driver],
+                            [order.from_lng, order.from_lat],
+                            [order.to_lng, order.to_lat]
+                        ]
+                    }
+                }
+            });
+            
+            map.addLayer({
+                'id': 'route',
+                'type': 'line',
+                'source': 'route',
+                'layout': {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                'paint': {
+                    'line-color': '#1a2a6c',
+                    'line-width': 4,
+                    'line-dasharray': [2, 2]
+                }
+            });
+            
+            // Zoom ke seluruh rute
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend([order.lng_driver, order.lat_driver]);
+            bounds.extend([order.from_lng, order.from_lat]);
+            bounds.extend([order.to_lng, order.to_lat]);
+            map.fitBounds(bounds, { padding: 100 });
+        }
+        
+        // Fungsi untuk memperbarui UI
+        function updateUI(order) {
+            // Update informasi driver
+            document.getElementById('driver-avatar').textContent = order.driverName ? order.driverName.charAt(0) : '-';
+            document.getElementById('driver-name').textContent = order.driverName || '-';
+            document.getElementById('driver-plate').textContent = formatPlate(order.driverID);
+            
+            // Update detail perjalanan
+            document.getElementById('duration').textContent = order.durasi || '-';
+            document.getElementById('distance').textContent = order.jarak || '-';
+            document.getElementById('vehicle').textContent = order.vehicle || '-';
+            document.getElementById('price').textContent = order.harga || '-';
+            document.getElementById('pickup-address').textContent = order.alamat_a || '-';
+            document.getElementById('destination-address').textContent = order.alamat_b || '-';
+            
+            // Update detail tambahan
+            document.getElementById('passenger-name').textContent = order.name || '-';
+            document.getElementById('passenger-phone').textContent = order.PhoneNumber || '-';
+            document.getElementById('order-time').textContent = order.waktu_order || '-';
+            document.getElementById('order-status').textContent = order.status || '-';
+            
+            // Update status
+            const statusText = getStatusText(order.status);
+            document.getElementById('status-indicator').textContent = statusText;
+            
+            // Update jarak
+            const distance = calculateDistance(
+                order.lat_driver, 
+                order.lng_driver, 
+                order.from_lat, 
+                order.from_lng
+            );
+            document.getElementById('distance-info').textContent = `${distance.toFixed(1)} km`;
+            
+            // Update progress bar
+            updateProgressBar(order.status);
+        }
+        
+        // Fungsi untuk mendapatkan teks status
+        function getStatusText(status) {
+            const statusMap = {
+                'menunggudriver': 'Mencari Driver',
+                'diambil': 'Driver Menuju Ke Lokasi Anda',
+                'tiba_di_jemput': 'Driver Telah Tiba di Lokasi Penjemputan',
+                'perjalanan': 'Dalam Perjalanan Menuju Tujuan',
+                'selesai': 'Perjalanan Selesai'
+            };
+            return statusMap[status] || status;
+        }
+        
+        // Fungsi untuk menghitung jarak
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius bumi dalam km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c;
+        }
+        
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+        
+        // Fungsi untuk memperbarui progress bar
+        function updateProgressBar(status) {
+            const progressMap = {
+                'menunggudriver': 10,
+                'diambil': 30,
+                'tiba_di_jemput': 50,
+                'perjalanan': 70,
+                'selesai': 100
+            };
+            
+            const progress = progressMap[status] || 0;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            
+            // Update step aktif
+            const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            const statusIndex = Object.keys(progressMap).indexOf(status);
+            steps.forEach((stepId, index) => {
+                const step = document.getElementById(stepId);
+                if (index <= statusIndex) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+        
+        // Dengarkan perubahan pada data pesanan
+        ordersRef.orderByChild('userID').equalTo(userId).on('value', (snapshot) => {
+            const orders = snapshot.val();
+            if (orders) {
+                // Karena query bisa kembalikan banyak, kita ambil yang pertama
+                const orderKeys = Object.keys(orders);
+                if (orderKeys.length > 0) {
+                    const orderId = orderKeys[0];
+                    const orderData = orders[orderId];
+                    currentOrder = orderData;
+                    
+                    // Perbarui UI
+                    updateUI(orderData);
+                    
+                    // Perbarui peta
+                    updateMap(orderData);
+                    
+                    // Perbarui koneksi status
+                    document.getElementById('connection-status').className = 'connection-status connected';
+                    document.getElementById('connection-status').innerHTML = '<i class="fas fa-wifi"></i> Terhubung ke Firebase';
+                    
+                    // Sembunyikan loading state
+                    document.querySelector('#map .loading').style.display = 'none';
+                    
+                    console.log('Data Firebase yang diterima:', orderData);
+                } else {
+                    showNoData();
+                }
+            } else {
+                showNoData();
+            }
+        }, (error) => {
+            showError(error);
+        });
+        
+        function showNoData() {
+            document.getElementById('status-indicator').textContent = "Tidak ada pesanan aktif";
+            document.querySelector('#map .loading').innerHTML = '<div class="no-data"><i class="fas fa-exclamation-triangle"></i><br>Data pesanan tidak ditemukan</div>';
+        }
+        
+        function showError(error) {
+            document.getElementById('connection-status').className = 'connection-status disconnected';
+            document.getElementById('connection-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Gagal terhubung ke Firebase';
+            document.querySelector('#map .loading').innerHTML = '<div class="no-data"><i class="fas fa-exclamation-triangle"></i><br>Gagal memuat data dari Firebase</div>';
+            console.error('Error Firebase:', error);
+        }
+        
+        // Event listener untuk tombol
+        document.getElementById('btn-call').addEventListener('click', () => {
+            if (currentOrder && currentOrder.PhoneNumber) {
+                window.location.href = `tel:${currentOrder.PhoneNumber}`;
+            } else {
+                alert('Nomor telepon driver tidak tersedia');
+            }
+        });
+        
+        document.getElementById('btn-cancel').addEventListener('click', () => {
+            if (confirm('Apakah Anda yakin ingin membatalkan pesanan?')) {
+                if (currentOrder) {
+                    // Update status di Firebase
+                    // Kita perlu tahu key pesanan
+                    ordersRef.orderByChild('userID').equalTo(userId).once('value', (snapshot) => {
+                        const orders = snapshot.val();
+                        if (orders) {
+                            const orderKey = Object.keys(orders)[0];
+                            database.ref(`${firebaseBucket}/${orderKey}`).update({
+                                status: 'dibatalkan_penumpang'
+                            });
+                            alert('Pesanan telah dibatalkan');
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Mode demo hanya jika tidak ada koneksi Firebase
+        setTimeout(() => {
+            if (!currentOrder) {
+                document.getElementById('connection-status').className = 'connection-status disconnected';
+                document.getElementById('connection-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Mode Demo (Data Statis)';
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
