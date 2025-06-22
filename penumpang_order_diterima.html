@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Tracking Penumpang</title>
+    <title>Lacak Driver</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
@@ -138,12 +138,6 @@
             animation: pulse 1.5s infinite;
         }
         
-        .distance-info {
-            font-weight: bold;
-            color: #b21f1f;
-            font-size: 1.1rem;
-        }
-        
         .driver-info {
             display: flex;
             align-items: center;
@@ -187,6 +181,15 @@
             font-weight: bold;
             font-size: 1rem;
             display: inline-block;
+            margin-bottom: 5px;
+        }
+        
+        .driver-phone {
+            font-size: 0.95rem;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .info-grid {
@@ -403,27 +406,6 @@
             font-weight: bold;
         }
         
-        .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .connected {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .disconnected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
         .order-details {
             margin: 15px 0;
             padding: 15px;
@@ -452,21 +434,6 @@
             font-size: 0.95rem;
         }
         
-        .notification {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a2a6c;
-            color: white;
-            padding: 12px 25px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            z-index: 2000;
-            display: none;
-            font-weight: 600;
-        }
-        
         @media (max-width: 600px) {
             header h1 {
                 font-size: 1.8rem;
@@ -488,15 +455,17 @@
                 flex-direction: column;
             }
         }
+        
+        .mapboxgl-ctrl-bottom-right {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <div class="notification" id="notification"></div>
-    
     <div class="container">
         <header>
-            <h1><i class="fas fa-map-marker-alt"></i> Live Tracking Penumpang</h1>
-            <p>Lacak perjalanan Anda secara real-time</p>
+            <h1><i class="fas fa-map-marker-alt"></i> Lacak Driver</h1>
+            <p>Driver dapat dilihat di peta secara real-time</p>
         </header>
 
         <div class="main-content">
@@ -516,7 +485,6 @@
                     <div class="map-overlay">
                         <div class="status-bar">
                             <div class="status-indicator" id="status-indicator">Memuat data...</div>
-                            <div class="distance-info" id="distance-info">-</div>
                         </div>
                     </div>
                 </div>
@@ -526,6 +494,10 @@
                     <div class="driver-details">
                         <div class="driver-name" id="driver-name">-</div>
                         <div class="driver-plate" id="driver-plate">-</div>
+                        <div class="driver-phone">
+                            <i class="fas fa-phone"></i>
+                            <span id="driver-phone">-</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -555,12 +527,7 @@
                     </div>
                     
                     <div class="info-card">
-                        <h4><i class="fas fa-road"></i> Jarak</h4>
-                        <p id="distance">-</p>
-                    </div>
-                    
-                    <div class="info-card">
-                        <h4><i class="fas fa-motorcycle"></i> Kendaraan</h4>
+                        <h4><i class="fas fa-road"></i> Kendaraan</h4>
                         <p id="vehicle">-</p>
                     </div>
                     
@@ -584,10 +551,6 @@
                     <div class="detail-row">
                         <div class="detail-label">Nama Penumpang:</div>
                         <div class="detail-value" id="passenger-name">-</div>
-                    </div>
-                    <div class="detail-row">
-                        <div class="detail-label">No. Telepon:</div>
-                        <div class="detail-value" id="passenger-phone">-</div>
                     </div>
                     <div class="detail-row">
                         <div class="detail-label">Waktu Order:</div>
@@ -615,22 +578,16 @@
         </div>
     </div>
 
-    <div id="connection-status" class="connection-status connected">
-        <i class="fas fa-wifi"></i> Terhubung ke Firebase
-    </div>
-
     <script>
-        // Fungsi untuk menampilkan notifikasi
-        function showNotification(message, isSuccess = true) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.style.backgroundColor = isSuccess ? '#1a2a6c' : '#b21f1f';
-            notification.style.display = 'block';
-            
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
+        // Konstanta untuk URL ikon kendaraan
+        const iconUrls = {
+            motor: 'https://cdn-icons-png.flaticon.com/128/5811/5811823.png',
+            mobil: 'https://cdn-icons-png.flaticon.com/128/12689/12689302.png',
+            kurir: 'https://cdn-icons-png.flaticon.com/128/9561/9561688.png',
+            bentor: 'https://cdn-icons-png.flaticon.com/128/7890/7890227.png',
+            pickup: 'https://cdn-icons-png.flaticon.com/128/9017/9017605.png',
+            pickup_scooter: 'https://cdn-icons-png.flaticon.com/128/3177/3177363.png'
+        };
 
         // Ambil parameter URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -652,143 +609,156 @@
             databaseURL: firebaseURL
         };
         
-        // Inisialisasi Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         
-        // Referensi ke data pesanan pengguna
+        // Referensi ke data pesanan
         const orderRef = database.ref(`${firebaseBucket}/${orderId}`);
         
-        // Variabel global untuk data dan peta
-        let map, driverMarker, pickupMarker, destinationMarker, currentOrder;
+        // Variabel global
+        let map = null;
+        let currentOrder = null;
+        let driverMarker = null;
+        let routeLayer = null;
+        let routeSource = null;
         
-        // Format plat nomor
-        function formatPlate(plate) {
-            if (plate && plate.length === 8) {
-                return `${plate.substring(0, 2)} ${plate.substring(0, 2)} ${plate.substring(2, 6)} ${plate.substring(6)}`;
-            }
-            return plate || '-';
+        // Fungsi untuk menginisialisasi peta
+        function initMap() {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [124.85528, 1.52385], // Koordinat Manado sebagai default
+                zoom: 13
+            });
+            
+            // Tambahkan kontrol navigasi
+            map.addControl(new mapboxgl.NavigationControl());
         }
         
-        // Fungsi untuk memperbarui peta
-        function updateMap(order) {
-            if (!map) {
-                // Inisialisasi peta jika belum ada
-                map = new mapboxgl.Map({
-                    container: 'map',
-                    style: 'mapbox://styles/mapbox/streets-v12',
-                    center: [order.from_lng, order.from_lat],
-                    zoom: 14
-                });
-                
-                // Tambahkan kontrol navigasi
-                map.addControl(new mapboxgl.NavigationControl());
-            }
+        // Fungsi untuk memperbarui UI dengan data pesanan
+        function updateUI(orderData) {
+            // Informasi driver
+            document.getElementById('driver-avatar').textContent = orderData.driverName ? orderData.driverName.charAt(0) : '-';
+            document.getElementById('driver-name').textContent = orderData.driverName || '-';
+            document.getElementById('driver-plate').textContent = orderData.driverID || '-';
+            document.getElementById('driver-phone').textContent = orderData.driverPhone || '-';
+            
+            // Detail perjalanan
+            document.getElementById('duration').textContent = orderData.durasi || '-';
+            document.getElementById('vehicle').textContent = orderData.vehicle ? orderData.vehicle.charAt(0).toUpperCase() + orderData.vehicle.slice(1) : '-';
+            document.getElementById('price').textContent = orderData.harga || '-';
+            
+            // Alamat
+            document.getElementById('pickup-address').textContent = orderData.alamat_a || '-';
+            document.getElementById('destination-address').textContent = orderData.alamat_b || '-';
+            
+            // Detail pesanan
+            document.getElementById('passenger-name').textContent = orderData.name || '-';
+            document.getElementById('order-time').textContent = orderData.waktu_order || '-';
+            document.getElementById('order-status').textContent = getStatusText(orderData.status);
+            
+            // Status indicator
+            document.getElementById('status-indicator').textContent = getStatusText(orderData.status);
+            
+            // Progress bar
+            updateProgressBar(orderData.status);
+        }
+        
+        // Fungsi untuk memperbarui peta dengan data terbaru
+        function updateMap(orderData) {
+            if (!map) return;
             
             // Hapus marker lama jika ada
             if (driverMarker) driverMarker.remove();
-            if (pickupMarker) pickupMarker.remove();
-            if (destinationMarker) destinationMarker.remove();
             
-            // Tambahkan marker untuk lokasi penjemputan
-            pickupMarker = new mapboxgl.Marker({ color: '#1a2a6c', scale: 1.2 })
-                .setLngLat([order.from_lng, order.from_lat])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Penjemputan</b><br>${order.alamat_a}`))
-                .addTo(map);
-            
-            // Tambahkan marker untuk lokasi tujuan
-            destinationMarker = new mapboxgl.Marker({ color: '#b21f1f', scale: 1.2 })
-                .setLngLat([order.to_lng, order.to_lat])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Tujuan</b><br>${order.alamat_b}`))
-                .addTo(map);
-            
-            // Tambahkan marker untuk lokasi driver
-            driverMarker = new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
-                .setLngLat([order.lng_driver, order.lat_driver])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${order.driverName}<br>${formatPlate(order.driverID)}`))
-                .addTo(map);
-            
-            // Tambahkan garis rute
-            if (map.getSource('route')) {
+            // Hapus rute lama jika ada
+            if (routeLayer) {
                 map.removeLayer('route');
                 map.removeSource('route');
             }
             
-            map.addSource('route', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'Feature',
-                    'properties': {},
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [
-                            [order.lng_driver, order.lat_driver],
-                            [order.from_lng, order.from_lat],
-                            [order.to_lng, order.to_lat]
-                        ]
-                    }
-                }
-            });
+            // Dapatkan koordinat driver
+            const driverLng = orderData.lng_driver;
+            const driverLat = orderData.lat_driver;
             
-            map.addLayer({
-                'id': 'route',
-                'type': 'line',
-                'source': 'route',
-                'layout': {
-                    'line-join': 'round',
-                    'line-cap': 'round'
-                },
-                'paint': {
-                    'line-color': '#1a2a6c',
-                    'line-width': 4,
-                    'line-dasharray': [2, 2]
-                }
-            });
+            // Dapatkan jenis kendaraan untuk ikon
+            const vehicleType = orderData.vehicle || 'motor';
+            const iconUrl = iconUrls[vehicleType] || iconUrls.motor;
             
-            // Zoom ke seluruh rute
-            const bounds = new mapboxgl.LngLatBounds();
-            bounds.extend([order.lng_driver, order.lat_driver]);
-            bounds.extend([order.from_lng, order.from_lat]);
-            bounds.extend([order.to_lng, order.to_lat]);
-            map.fitBounds(bounds, { padding: 100 });
-        }
-        
-        // Fungsi untuk memperbarui UI
-        function updateUI(order) {
-            // Update informasi driver
-            document.getElementById('driver-avatar').textContent = order.driverName ? order.driverName.charAt(0) : '-';
-            document.getElementById('driver-name').textContent = order.driverName || '-';
-            document.getElementById('driver-plate').textContent = formatPlate(order.driverID);
+            // Buat elemen untuk marker
+            const el = document.createElement('div');
+            el.className = 'driver-marker';
+            el.style.backgroundImage = `url(${iconUrl})`;
+            el.style.backgroundSize = 'cover';
+            el.style.width = '40px';
+            el.style.height = '40px';
             
-            // Update detail perjalanan
-            document.getElementById('duration').textContent = order.durasi || '-';
-            document.getElementById('distance').textContent = order.jarak || '-';
-            document.getElementById('vehicle').textContent = order.vehicle || '-';
-            document.getElementById('price').textContent = order.harga || '-';
-            document.getElementById('pickup-address').textContent = order.alamat_a || '-';
-            document.getElementById('destination-address').textContent = order.alamat_b || '-';
+            // Tambahkan marker driver
+            driverMarker = new mapboxgl.Marker(el)
+                .setLngLat([driverLng, driverLat])
+                .addTo(map);
             
-            // Update detail tambahan
-            document.getElementById('passenger-name').textContent = order.name || '-';
-            document.getElementById('passenger-phone').textContent = order.PhoneNumber || '-';
-            document.getElementById('order-time').textContent = order.waktu_order || '-';
-            document.getElementById('order-status').textContent = order.status || '-';
-            
-            // Update status
-            const statusText = getStatusText(order.status);
-            document.getElementById('status-indicator').textContent = statusText;
-            
-            // Update jarak
-            const distance = calculateDistance(
-                order.lat_driver, 
-                order.lng_driver, 
-                order.from_lat, 
-                order.from_lng
-            );
-            document.getElementById('distance-info').textContent = `${distance.toFixed(1)} km`;
-            
-            // Update progress bar
-            updateProgressBar(order.status);
+            // Tambahkan rute jika ada koordinat penjemputan dan tujuan
+            if (orderData.from_lat && orderData.from_lng && orderData.to_lat && orderData.to_lng) {
+                // Buat rute menggunakan Directions API
+                const start = [orderData.from_lng, orderData.from_lat];
+                const end = [orderData.to_lng, orderData.to_lat];
+                
+                const directionsRequest = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&access_token=${mapboxToken}`;
+                
+                fetch(directionsRequest)
+                    .then(response => response.json())
+                    .then(data => {
+                        const route = data.routes[0].geometry;
+                        
+                        // Tambahkan sumber data rute
+                        routeSource = new mapboxgl.GeoJSONSource({
+                            data: {
+                                type: 'Feature',
+                                properties: {},
+                                geometry: route
+                            }
+                        });
+                        
+                        map.addSource('route', routeSource);
+                        
+                        // Tambahkan lapisan rute
+                        map.addLayer({
+                            id: 'route',
+                            type: 'line',
+                            source: 'route',
+                            layout: {
+                                'line-join': 'round',
+                                'line-cap': 'round'
+                            },
+                            paint: {
+                                'line-color': '#1a2a6c',
+                                'line-width': 4,
+                                'line-opacity': 0.7
+                            }
+                        });
+                        
+                        routeLayer = 'route';
+                        
+                        // Fit peta ke rute
+                        const bounds = new mapboxgl.LngLatBounds();
+                        bounds.extend(start);
+                        bounds.extend(end);
+                        map.fitBounds(bounds, {
+                            padding: 50,
+                            maxZoom: 15
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching directions:', error);
+                    });
+            } else {
+                // Pusatkan peta ke lokasi driver
+                map.flyTo({
+                    center: [driverLng, driverLat],
+                    zoom: 15
+                });
+            }
         }
         
         // Fungsi untuk mendapatkan teks status
@@ -801,23 +771,6 @@
                 'selesai': 'Perjalanan Selesai'
             };
             return statusMap[status] || status;
-        }
-        
-        // Fungsi untuk menghitung jarak
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Radius bumi dalam km
-            const dLat = deg2rad(lat2 - lat1);
-            const dLon = deg2rad(lon2 - lon1);
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            return R * c;
-        }
-        
-        function deg2rad(deg) {
-            return deg * (Math.PI/180);
         }
         
         // Fungsi untuk memperbarui progress bar
@@ -858,75 +811,41 @@
                 // Perbarui peta
                 updateMap(orderData);
                 
-                // Perbarui koneksi status
-                document.getElementById('connection-status').className = 'connection-status connected';
-                document.getElementById('connection-status').innerHTML = '<i class="fas fa-wifi"></i> Terhubung ke Firebase';
-                
                 // Sembunyikan loading state
                 document.querySelector('#map .loading').style.display = 'none';
-                
-                showNotification('Data perjalanan diperbarui!');
             } else {
                 document.getElementById('status-indicator').textContent = "Tidak ada pesanan aktif";
                 document.querySelector('#map .loading').innerHTML = '<div class="no-data"><i class="fas fa-exclamation-triangle"></i><br>Data pesanan tidak ditemukan</div>';
-                showNotification('Pesanan tidak ditemukan', false);
             }
         }, (error) => {
-            document.getElementById('connection-status').className = 'connection-status disconnected';
-            document.getElementById('connection-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Gagal terhubung ke Firebase';
             document.querySelector('#map .loading').innerHTML = '<div class="no-data"><i class="fas fa-exclamation-triangle"></i><br>Gagal memuat data dari Firebase</div>';
-            showNotification('Gagal terhubung ke Firebase', false);
         });
         
         // Event listener untuk tombol
         document.getElementById('btn-call').addEventListener('click', () => {
-            if (currentOrder && currentOrder.PhoneNumber) {
-                window.location.href = `tel:${currentOrder.PhoneNumber}`;
-            } else {
-                showNotification('Nomor telepon driver tidak tersedia', false);
-            }
+            // Mengirim respon ke webstring
+            window.location.href = 'webstring://call_driver';
         });
         
         document.getElementById('btn-cancel').addEventListener('click', () => {
             if (confirm('Apakah Anda yakin ingin membatalkan pesanan?')) {
-                if (currentOrder) {
-                    // Update status di Firebase
-                    database.ref(`${firebaseBucket}/${orderId}`).update({
-                        status: 'dibatalkan_penumpang'
-                    });
-                    showNotification('Pesanan telah dibatalkan');
-                }
+                // Mengirim respon ke webstring
+                window.location.href = 'webstring://cancel_order';
             }
         });
         
-        // Simulasi update lokasi driver
-        setInterval(() => {
-            if (!currentOrder || !map) return;
-            
-            // Simulasi pergerakan driver
-            const newLng = currentOrder.lng_driver + (Math.random() * 0.0005 - 0.00025);
-            const newLat = currentOrder.lat_driver + (Math.random() * 0.0005 - 0.00025);
-            
-            // Update lokasi driver di Firebase
-            database.ref(`${firebaseBucket}/${orderId}`).update({
-                lng_driver: newLng,
-                lat_driver: newLat
-            });
-            
-        }, 5000);
+        // Inisialisasi peta saat halaman dimuat
+        initMap();
         
         // Mode demo hanya jika tidak ada koneksi Firebase
         setTimeout(() => {
             if (!currentOrder) {
-                document.getElementById('connection-status').className = 'connection-status disconnected';
-                document.getElementById('connection-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Mode Demo (Data Statis)';
-                
                 // Contoh data untuk demo
-                updateUI({
+                const demoData = {
                     driverName: "Iron",
                     driverID: "DM2842MD",
+                    driverPhone: "83142889149",
                     durasi: "7 menit",
-                    jarak: "2.5 km",
                     vehicle: "motor",
                     harga: "Rp 10.000",
                     alamat_a: "GVF4 G4R, Jl. Kuala Buha, Bailang, Kec. Bunaken, Kota Manado",
@@ -939,23 +858,11 @@
                     lng_driver: 124.8551701,
                     status: "tiba_di_jemput",
                     name: "Liani Adam",
-                    PhoneNumber: "83142889149",
                     waktu_order: "06/22/2025 07:23:50 AM"
-                });
+                };
                 
-                // Perbarui peta
-                updateMap({
-                    from_lat: 1.52385,
-                    from_lng: 124.85528,
-                    to_lat: 1.5112,
-                    to_lng: 124.8444,
-                    lat_driver: 1.5238991,
-                    lng_driver: 124.8551701,
-                    alamat_a: "GVF4 G4R, Jl. Kuala Buha, Bailang, Kec. Bunaken, Kota Manado",
-                    alamat_b: "Tuna House Bitung Karangria, Bitung Karangria, Kota Manado, Sulawesi Utara",
-                    driverName: "Iron",
-                    driverID: "DM2842MD"
-                });
+                updateUI(demoData);
+                updateMap(demoData);
                 
                 // Sembunyikan loading state
                 document.querySelector('#map .loading').style.display = 'none';
