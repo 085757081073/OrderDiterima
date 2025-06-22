@@ -488,133 +488,144 @@
         </div>
     </div>
 
-    <script>
-        // Ambil parameter URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const mapboxToken = urlParams.get('mapbox_token') || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
-        const firebaseURL = urlParams.get('firebase_url');
-        const firebaseKey = urlParams.get('firebase_key');
-        const bucket = urlParams.get('firebase_bucket');
-        const userID = urlParams.get('user_id');
-        
-        // Konfigurasi Mapbox
-        mapboxgl.accessToken = mapboxToken;
-        
-        // Inisialisasi Firebase
-        const firebaseConfig = {
-            apiKey: firebaseKey,
-            databaseURL: firebaseURL
-        };
-        
-        // Inisialisasi Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        // Referensi ke data pesanan pengguna
-        const orderRef = database.ref(bucket).orderByChild('userID').equalTo(userID);
-        
-        // Variabel global untuk data dan peta
-        let map, driverMarker, pickupMarker, destinationMarker, currentOrder;
-        
-        // Format plat nomor
-        function formatPlate(plate) {
-            if (plate && plate.length === 8) {
-                return `${plate.substring(0, 2)} ${plate.substring(2, 6)} ${plate.substring(6)}`;
-            }
-            return plate || '-';
+    
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const mapboxToken = urlParams.get('mapbox_token') || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+    const firebaseURL = urlParams.get('firebase_url');
+    const firebaseKey = urlParams.get('firebase_key');
+    const bucket = urlParams.get('firebase_bucket');
+    const userID = urlParams.get('user_id');
+
+    mapboxgl.accessToken = mapboxToken;
+
+    const firebaseConfig = {
+        apiKey: firebaseKey,
+        databaseURL: firebaseURL
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const orderRef = database.ref(bucket).orderByChild('userID').equalTo(userID);
+
+    let map, driverMarker, pickupMarker, destinationMarker;
+
+    function formatPlate(plate) {
+        if (plate && plate.length === 8) {
+            return `${plate.substring(0, 2)} ${plate.substring(2, 6)} ${plate.substring(6)}`;
         }
-        
-        // Fungsi untuk memperbarui peta
-        function updateMap(order) {
-            if (!map) {
-                // Inisialisasi peta jika belum ada
-                map = new mapboxgl.Map({
-                    container: 'map',
-                    style: 'mapbox://styles/mapbox/streets-v12',
-                    center: [order.from_ing, order.from_lat],
-                    zoom: 14
-                });
-                
-                // Tambahkan kontrol navigasi
-                map.addControl(new mapboxgl.NavigationControl());
-            }
-            
-            // Hapus marker lama jika ada
-            if (driverMarker) driverMarker.remove();
-            if (pickupMarker) pickupMarker.remove();
-            if (destinationMarker) destinationMarker.remove();
-            
-            // Tambahkan marker untuk lokasi penjemputan
-            pickupMarker = new mapboxgl.Marker({ color: '#1a2a6c', scale: 1.2 })
-                .setLngLat([order.from_ing, order.from_lat])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Penjemputan</b><br>${order.alama_t_a}`))
-                .addTo(map);
-            
-            // Tambahkan marker untuk lokasi tujuan
-            destinationMarker = new mapboxgl.Marker({ color: '#b21f1f', scale: 1.2 })
-                .setLngLat([order.to_ing, order.to_lat])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Tujuan</b><br>${order.alama_t_b}`))
-                .addTo(map);
-            
-            // Tambahkan marker untuk lokasi driver
-            driverMarker = new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
-                .setLngLat([order.ing_driver, order.lat_driver])
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${order.driverName}<br>${formatPlate(order.driverID)}`))
-                .addTo(map);
-            
-            // Tambahkan garis rute
-            if (map.getSource('route')) {
-                map.removeLayer('route');
-                map.removeSource('route');
-            }
-            
-            map.addSource('route', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'Feature',
-                    'properties': {},
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [
-                            [order.ing_driver, order.lat_driver],
-                            [order.from_ing, order.from_lat],
-                            [order.to_ing, order.to_lat]
-                        ]
-                    }
-                }
+        return plate || '-';
+    }
+
+    function updateMap(order) {
+        if (!map) {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v12',
+                center: [order.from_lng, order.from_lat],
+                zoom: 14
             });
-            
-            map.addLayer({
-                'id': 'route',
-                'type': 'line',
-                'source': 'route',
-                'layout': {
-                    'line-join': 'round',
-                    'line-cap': 'round'
-                },
-                'paint': {
-                    'line-color': '#1a2a6c',
-                    'line-width': 4,
-                    'line-dasharray': [2, 2]
-                }
-            });
-            
-            // Zoom ke seluruh rute
-            const bounds = new mapboxgl.LngLatBounds();
-            bounds.extend([order.ing_driver, order.lat_driver]);
-            bounds.extend([order.from_ing, order.from_lat]);
-            bounds.extend([order.to_ing, order.to_lat]);
-            map.fitBounds(bounds, { padding: 100 });
+            map.addControl(new mapboxgl.NavigationControl());
         }
-        
-        // Fungsi untuk memperbarui UI
-        function updateUI(order) {
-            // Update informasi driver
-            document.getElementById('driver-avatar').textContent = order.driverName ? order.driverName.charAt(0) : '-';
-            document.getElementById('driver-name').textContent = order.driverName || '-';
-            document.getElementById('driver-plate').textContent = formatPlate(order.driverID);
-            
-            // Update detail perjalanan
-            document.getElementById('duration').textContent = order.durasi || '-';
-            document.getElementById('distance').textContent = order.jarak || '-';
-            document.getElementById('vehicle'
+
+        if (driverMarker) driverMarker.remove();
+        if (pickupMarker) pickupMarker.remove();
+        if (destinationMarker) destinationMarker.remove();
+
+        pickupMarker = new mapboxgl.Marker({ color: '#1a2a6c', scale: 1.2 })
+            .setLngLat([order.from_lng, order.from_lat])
+            .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Penjemputan</b><br>${order.alamat_a}`))
+            .addTo(map);
+
+        destinationMarker = new mapboxgl.Marker({ color: '#b21f1f', scale: 1.2 })
+            .setLngLat([order.to_lng, order.to_lat])
+            .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Tujuan</b><br>${order.alamat_b}`))
+            .addTo(map);
+
+        driverMarker = new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
+            .setLngLat([order.lng_driver, order.lat_driver])
+            .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${order.driverName}<br>${formatPlate(order.driverID)}`))
+            .addTo(map);
+
+        if (map.getSource('route')) {
+            map.removeLayer('route');
+            map.removeSource('route');
+        }
+
+        map.addSource('route', {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': [
+                        [order.lng_driver, order.lat_driver],
+                        [order.from_lng, order.from_lat],
+                        [order.to_lng, order.to_lat]
+                    ]
+                }
+            }
+        });
+
+        map.addLayer({
+            'id': 'route',
+            'type': 'line',
+            'source': 'route',
+            'layout': {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            'paint': {
+                'line-color': '#1a2a6c',
+                'line-width': 4,
+                'line-dasharray': [2, 2]
+            }
+        });
+
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend([order.lng_driver, order.lat_driver]);
+        bounds.extend([order.from_lng, order.from_lat]);
+        bounds.extend([order.to_lng, order.to_lat]);
+        map.fitBounds(bounds, { padding: 100 });
+    }
+
+    function updateUI(order) {
+        document.getElementById('status-indicator').textContent = order.status || '-';
+        document.getElementById('distance-info').textContent = order.jarak || '-';
+        document.getElementById('driver-avatar').textContent = order.driverName?.charAt(0).toUpperCase() || '-';
+        document.getElementById('driver-name').textContent = order.driverName || '-';
+        document.getElementById('driver-plate').textContent = formatPlate(order.driverID) || '-';
+        document.getElementById('duration').textContent = order.durasi || '-';
+        document.getElementById('distance').textContent = order.jarak || '-';
+        document.getElementById('vehicle').textContent = order.vehicle || '-';
+        document.getElementById('price').textContent = order.harga || '-';
+        document.getElementById('pickup-address').textContent = order.alamat_a || '-';
+        document.getElementById('destination-address').textContent = order.alamat_b || '-';
+
+        const status = order.status;
+        const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+        let activeStep = 0;
+        if (status === 'pesanan_diterima') activeStep = 0;
+        else if (status === 'menuju_penjemput') activeStep = 1;
+        else if (status === 'tiba_di_jemput') activeStep = 2;
+        else if (status === 'dalam_perjalanan') activeStep = 3;
+        else if (status === 'sampai_tujuan') activeStep = 4;
+
+        steps.forEach((id, index) => {
+            const stepEl = document.getElementById(id);
+            if (index <= activeStep) stepEl.classList.add('active');
+            else stepEl.classList.remove('active');
+        });
+
+        document.getElementById('progress-bar').style.width = `${(activeStep + 1) * 20}%`;
+    }
+
+    orderRef.once('value', (snapshot) => {
+        snapshot.forEach((childSnap) => {
+            const order = childSnap.val();
+            updateMap(order);
+            updateUI(order);
+        });
+    });
+</script>
