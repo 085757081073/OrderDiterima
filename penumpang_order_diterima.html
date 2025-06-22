@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
@@ -358,6 +360,28 @@
             background: #1a2a6c;
             border-color: #1a2a6c;
         }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #1a2a6c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -375,20 +399,25 @@
                 </div>
                 
                 <div class="map-container">
-                    <div id="map"></div>
+                    <div id="map">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Memuat peta dan data perjalanan...</p>
+                        </div>
+                    </div>
                     <div class="map-overlay">
                         <div class="status-bar">
-                            <div class="status-indicator" id="status-indicator">Driver Menuju Ke Lokasi Anda</div>
-                            <div class="distance-info" id="distance-info">2.5 km</div>
+                            <div class="status-indicator" id="status-indicator">Memuat data...</div>
+                            <div class="distance-info" id="distance-info">-</div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="driver-info">
-                    <div class="driver-avatar">I</div>
+                    <div class="driver-avatar" id="driver-avatar">-</div>
                     <div class="driver-details">
-                        <div class="driver-name">Iron</div>
-                        <div class="driver-plate" id="driver-plate">DM 2842 MD</div>
+                        <div class="driver-name" id="driver-name">-</div>
+                        <div class="driver-plate" id="driver-plate">-</div>
                     </div>
                 </div>
                 
@@ -397,11 +426,11 @@
                 </div>
                 
                 <div class="progress-steps">
-                    <div class="step active">Pesanan Diterima</div>
-                    <div class="step active">Driver Menuju</div>
-                    <div class="step">Penjemputan</div>
-                    <div class="step">Dalam Perjalanan</div>
-                    <div class="step">Sampai Tujuan</div>
+                    <div class="step" id="step1">Pesanan Diterima</div>
+                    <div class="step" id="step2">Driver Menuju</div>
+                    <div class="step" id="step3">Penjemputan</div>
+                    <div class="step" id="step4">Dalam Perjalanan</div>
+                    <div class="step" id="step5">Sampai Tujuan</div>
                 </div>
             </div>
             
@@ -414,44 +443,40 @@
                 <div class="info-grid">
                     <div class="info-card">
                         <h4><i class="fas fa-clock"></i> Durasi Perjalanan</h4>
-                        <p id="duration">7 menit</p>
+                        <p id="duration">-</p>
                     </div>
                     
                     <div class="info-card">
                         <h4><i class="fas fa-road"></i> Jarak Tempuh</h4>
-                        <p id="distance">2.5 km</p>
+                        <p id="distance">-</p>
                     </div>
                     
                     <div class="info-card">
                         <h4><i class="fas fa-motorcycle"></i> Jenis Kendaraan</h4>
-                        <p id="vehicle">Motor</p>
+                        <p id="vehicle">-</p>
                     </div>
                     
                     <div class="price-card">
                         <div class="price-label">Total Biaya</div>
-                        <div class="price-amount" id="price">Rp 10.000</div>
+                        <div class="price-amount" id="price">-</div>
                     </div>
                 </div>
                 
                 <div class="address-card">
                     <h3><i class="fas fa-location-dot"></i> Titik Penjemputan</h3>
-                    <div class="address-content" id="pickup-address">
-                        GVF4 G4R, Jl. Kuala Buha, Bailang, Kec. Bunaken, Kota Manado
-                    </div>
+                    <div class="address-content" id="pickup-address">-</div>
                 </div>
                 
                 <div class="address-card">
                     <h3><i class="fas fa-flag-checkered"></i> Titik Tujuan</h3>
-                    <div class="address-content" id="destination-address">
-                        Tuna House Bitung Karangria, Bitung Karangria, Kota Manado
-                    </div>
+                    <div class="address-content" id="destination-address">-</div>
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="btn btn-primary">
+                    <button class="btn btn-primary" id="btn-call">
                         <i class="fas fa-phone"></i> Hubungi Driver
                     </button>
-                    <button class="btn btn-danger">
+                    <button class="btn btn-danger" id="btn-cancel">
                         <i class="fas fa-times"></i> Batalkan Pesanan
                     </button>
                 </div>
@@ -464,81 +489,85 @@
     </div>
 
     <script>
+        // Ambil parameter URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const mapboxToken = urlParams.get('mapbox_token') || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+        const firebaseURL = urlParams.get('firebase_url');
+        const firebaseKey = urlParams.get('firebase_key');
+        const bucket = urlParams.get('firebase_bucket');
+        const userID = urlParams.get('user_id');
+        
         // Konfigurasi Mapbox
-        const mapboxToken = new URLSearchParams(window.location.search).get('mapbox_token') || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
-        
-        // Inisialisasi peta
         mapboxgl.accessToken = mapboxToken;
-        const map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/streets-v12',
-            center: [124.85528, 1.52385], // Long, Lat
-            zoom: 14
-        });
         
-        // Data pesanan (biasanya dari Firebase, tapi di sini contoh statis)
-        const orderData = {
-            pickup: {
-                name: "Liani Adam",
-                address: "GVF4 G4R, Jl. Kuala Buha, Bailang, Kec. Bunaken, Kota Manado",
-                coords: [124.85528, 1.52385]
-            },
-            destination: {
-                address: "Tuna House Bitung Karangria, Bitung Karangria, Kota Manado",
-                coords: [124.8444, 1.5112]
-            },
-            driver: {
-                name: "Iron",
-                plate: "DM2842MD",
-                coords: [124.8551701, 1.5238991]
-            },
-            details: {
-                price: "Rp 10.000",
-                distance: "2.5 km",
-                duration: "7 menit",
-                vehicle: "Motor",
-                status: "tiba_di_jemput"
-            }
+        // Inisialisasi Firebase
+        const firebaseConfig = {
+            apiKey: firebaseKey,
+            databaseURL: firebaseURL
         };
+        
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // Referensi ke data pesanan pengguna
+        const orderRef = database.ref(bucket).orderByChild('userID').equalTo(userID);
+        
+        // Variabel global untuk data dan peta
+        let map, driverMarker, pickupMarker, destinationMarker, currentOrder;
         
         // Format plat nomor
         function formatPlate(plate) {
-            if (plate.length === 8) {
+            if (plate && plate.length === 8) {
                 return `${plate.substring(0, 2)} ${plate.substring(2, 6)} ${plate.substring(6)}`;
             }
-            return plate;
+            return plate || '-';
         }
         
-        // Tampilkan data pesanan
-        document.getElementById('driver-plate').textContent = formatPlate(orderData.driver.plate);
-        document.getElementById('duration').textContent = orderData.details.duration;
-        document.getElementById('distance').textContent = orderData.details.distance;
-        document.getElementById('vehicle').textContent = orderData.details.vehicle;
-        document.getElementById('price').textContent = orderData.details.price;
-        document.getElementById('pickup-address').textContent = orderData.pickup.address;
-        document.getElementById('destination-address').textContent = orderData.destination.address;
-        
-        // Tambahkan marker setelah peta selesai dimuat
-        map.on('load', () => {
+        // Fungsi untuk memperbarui peta
+        function updateMap(order) {
+            if (!map) {
+                // Inisialisasi peta jika belum ada
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: [order.from_ing, order.from_lat],
+                    zoom: 14
+                });
+                
+                // Tambahkan kontrol navigasi
+                map.addControl(new mapboxgl.NavigationControl());
+            }
+            
+            // Hapus marker lama jika ada
+            if (driverMarker) driverMarker.remove();
+            if (pickupMarker) pickupMarker.remove();
+            if (destinationMarker) destinationMarker.remove();
+            
             // Tambahkan marker untuk lokasi penjemputan
-            new mapboxgl.Marker({ color: '#1a2a6c', scale: 1.2 })
-                .setLngLat(orderData.pickup.coords)
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Penjemputan</b><br>${orderData.pickup.address}`))
+            pickupMarker = new mapboxgl.Marker({ color: '#1a2a6c', scale: 1.2 })
+                .setLngLat([order.from_ing, order.from_lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Penjemputan</b><br>${order.alama_t_a}`))
                 .addTo(map);
             
             // Tambahkan marker untuk lokasi tujuan
-            new mapboxgl.Marker({ color: '#b21f1f', scale: 1.2 })
-                .setLngLat(orderData.destination.coords)
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Tujuan</b><br>${orderData.destination.address}`))
+            destinationMarker = new mapboxgl.Marker({ color: '#b21f1f', scale: 1.2 })
+                .setLngLat([order.to_ing, order.to_lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`<b>Titik Tujuan</b><br>${order.alama_t_b}`))
                 .addTo(map);
             
             // Tambahkan marker untuk lokasi driver
-            const driverMarker = new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
-                .setLngLat(orderData.driver.coords)
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${orderData.driver.name}<br>${formatPlate(orderData.driver.plate)}`))
+            driverMarker = new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
+                .setLngLat([order.ing_driver, order.lat_driver])
+                .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${order.driverName}<br>${formatPlate(order.driverID)}`))
                 .addTo(map);
             
             // Tambahkan garis rute
+            if (map.getSource('route')) {
+                map.removeLayer('route');
+                map.removeSource('route');
+            }
+            
             map.addSource('route', {
                 'type': 'geojson',
                 'data': {
@@ -547,9 +576,9 @@
                     'geometry': {
                         'type': 'LineString',
                         'coordinates': [
-                            orderData.driver.coords,
-                            orderData.pickup.coords,
-                            orderData.destination.coords
+                            [order.ing_driver, order.lat_driver],
+                            [order.from_ing, order.from_lat],
+                            [order.to_ing, order.to_lat]
                         ]
                     }
                 }
@@ -572,45 +601,20 @@
             
             // Zoom ke seluruh rute
             const bounds = new mapboxgl.LngLatBounds();
-            bounds.extend(orderData.driver.coords);
-            bounds.extend(orderData.pickup.coords);
-            bounds.extend(orderData.destination.coords);
+            bounds.extend([order.ing_driver, order.lat_driver]);
+            bounds.extend([order.from_ing, order.from_lat]);
+            bounds.extend([order.to_ing, order.to_lat]);
             map.fitBounds(bounds, { padding: 100 });
-        });
+        }
         
-        // Simulasi update lokasi driver
-        setInterval(() => {
-            // Simulasi pergerakan driver
-            const newLng = orderData.driver.coords[0] + (Math.random() * 0.0005 - 0.00025);
-            const newLat = orderData.driver.coords[1] + (Math.random() * 0.0005 - 0.00025);
+        // Fungsi untuk memperbarui UI
+        function updateUI(order) {
+            // Update informasi driver
+            document.getElementById('driver-avatar').textContent = order.driverName ? order.driverName.charAt(0) : '-';
+            document.getElementById('driver-name').textContent = order.driverName || '-';
+            document.getElementById('driver-plate').textContent = formatPlate(order.driverID);
             
-            // Update lokasi driver
-            orderData.driver.coords = [newLng, newLat];
-            
-            // Update marker driver
-            const driverMarker = document.querySelector('.mapboxgl-marker');
-            if (driverMarker) {
-                driverMarker.remove();
-            }
-            
-            new mapboxgl.Marker({ color: '#fdbb2d', scale: 1.5 })
-                .setLngLat(orderData.driver.coords)
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>Driver</b><br>${orderData.driver.name}<br>${formatPlate(orderData.driver.plate)}`))
-                .addTo(map);
-            
-            // Update garis rute
-            if (map.getSource('route')) {
-                map.getSource('route').setData({
-                    'type': 'Feature',
-                    'properties': {},
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [
-                            orderData.driver.coords,
-                            orderData.pickup.coords,
-                            orderData.destination.coords
-                        ]
-                    }
-                });
-            }
-   
+            // Update detail perjalanan
+            document.getElementById('duration').textContent = order.durasi || '-';
+            document.getElementById('distance').textContent = order.jarak || '-';
+            document.getElementById('vehicle'
